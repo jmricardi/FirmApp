@@ -1,0 +1,9 @@
+name = "easyscan-credits-worker"
+main = "cloudflare_worker.js"
+compatibility_date = "2024-04-29"
+
+[vars]
+FIREBASE_PROJECT_ID = "easyscan-ee1d4"
+
+# Nota: No pongas el WORKER_SECRET aquí por seguridad. 
+# Usa el comando: npx wrangler secret put WORKER_SECRET

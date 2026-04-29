@@ -1,0 +1,68 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+
+class AuthService with ChangeNotifier {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  User? get currentUser => _auth.currentUser;
+
+  AuthService() {
+    _auth.authStateChanges().listen((user) {
+      notifyListeners();
+    });
+  }
+
+  Future<void> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return;
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      await _ensureUserDocument(userCredential.user!);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> signInWithEmail(String email, String password) async {
+    await _auth.signInWithEmailAndPassword(email: email, password: password);
+  }
+
+  Future<void> registerWithEmail(String email, String password, String displayName) async {
+    final UserCredential credential = await _auth.createUserWithEmailAndPassword(
+      email: email, 
+      password: password,
+    );
+    await credential.user!.updateDisplayName(displayName);
+    await _ensureUserDocument(credential.user!, initialName: displayName);
+  }
+
+  Future<void> _ensureUserDocument(User user, {String? initialName}) async {
+    final docRef = _db.collection('users').doc(user.uid);
+    final doc = await docRef.get();
+    
+    if (!doc.exists) {
+      await docRef.set({
+        'email': user.email,
+        'displayName': initialName ?? user.displayName,
+        'credits': 5,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  Future<void> signOut() async {
+    await _googleSignIn.signOut();
+    await _auth.signOut();
+  }
+}

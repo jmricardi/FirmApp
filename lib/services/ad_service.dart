@@ -8,8 +8,8 @@ class AdService with ChangeNotifier {
   bool _isConnecting = false;
   bool _sdkInitialized = false;
   String _lastError = 'Esperando...';
+  Timer? _loadTimer;
   
-  // IDs CONFIGURADOS
   final String _realAdUnitId = 'ca-app-pub-4820421076069967/5299060763';
   final String _testAdUnitId = 'ca-app-pub-3940256099942544/5224354917';
 
@@ -23,18 +23,22 @@ class AdService with ChangeNotifier {
 
   Future<void> _initAdSystem() async {
     try {
-      _lastError = 'Verificando consentimiento...';
+      _lastError = 'Iniciando...';
       notifyListeners();
       
-      await _handleConsent().timeout(const Duration(seconds: 5), onTimeout: () {});
+      // Consentimiento con timeout
+      try {
+        await _handleConsent().timeout(const Duration(seconds: 4));
+      } catch (_) {
+        debugPrint('Consentimiento omitido');
+      }
       
       await MobileAds.instance.initialize();
       _sdkInitialized = true;
       
-      // Iniciamos con el Real
       loadRewardedAd(useTestId: false); 
     } catch (e) {
-      _lastError = 'Error inicialización: $e';
+      _lastError = 'Error: $e';
       notifyListeners();
     }
   }
@@ -70,40 +74,48 @@ class AdService with ChangeNotifier {
   }
 
   void loadRewardedAd({bool useTestId = false}) {
-    if (_isAdLoaded || _isConnecting) return;
+    // Si ya hay uno cargado o estamos en proceso, no duplicar (salvo que sea forzar prueba)
+    if (_isAdLoaded || (_isConnecting && !useTestId)) return;
     
     _isConnecting = true;
-    _lastError = useTestId ? 'Usando respaldo de prueba...' : 'Cargando real FirmaFacil...';
+    _lastError = useTestId ? 'Cargando prueba...' : 'Cargando real FirmaFacil...';
     notifyListeners();
 
-    final adUnitId = useTestId ? _testAdUnitId : _realAdUnitId;
+    _loadTimer?.cancel();
+    
+    if (!useTestId) {
+      _loadTimer = Timer(const Duration(seconds: 12), () {
+        if (_isConnecting && !_isAdLoaded) {
+          _isConnecting = false;
+          loadRewardedAd(useTestId: true);
+        }
+      });
+    }
 
     RewardedAd.load(
-      adUnitId: adUnitId,
+      adUnitId: useTestId ? _testAdUnitId : _realAdUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
+          _loadTimer?.cancel();
           _rewardedAd = ad;
           _isAdLoaded = true;
           _isConnecting = false;
-          _lastError = useTestId ? 'Listo (MODO PRUEBA)' : '¡Anuncio Real Listo!';
+          _lastError = useTestId ? 'Prueba OK' : '¡Real OK!';
           notifyListeners();
         },
         onAdFailedToLoad: (error) {
+          _loadTimer?.cancel();
           _isAdLoaded = false;
           _isConnecting = false;
           _rewardedAd = null;
           
           if (!useTestId) {
-            // SI FALLÓ EL REAL: Mostrar error y saltar al de prueba
-            _lastError = 'FirmaFacil Falló: ${error.message} (Cod:${error.code}). Cargando prueba...';
+            _lastError = 'FirmaFacil falló (${error.code})...';
             notifyListeners();
-            
-            // Esperar 2 segundos para que el usuario vea el error y cargar el de prueba
-            Future.delayed(const Duration(seconds: 2), () => loadRewardedAd(useTestId: true));
+            Future.delayed(const Duration(seconds: 1), () => loadRewardedAd(useTestId: true));
           } else {
-            // SI FALLÓ EL DE PRUEBA TAMBIÉN
-            _lastError = 'Sin anuncios disponibles.';
+            _lastError = 'Sin anuncios.';
             notifyListeners();
           }
         },
@@ -112,17 +124,14 @@ class AdService with ChangeNotifier {
   }
 
   void showRewardedAd({required Function onRewardEarned}) {
-    if (_rewardedAd == null) {
-      loadRewardedAd();
-      return;
-    }
+    if (_rewardedAd == null) return;
 
     _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _rewardedAd = null;
         _isAdLoaded = false;
-        loadRewardedAd(useTestId: false); // Tras ver uno, intentar el real de nuevo
+        loadRewardedAd(useTestId: false);
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         ad.dispose();
@@ -133,5 +142,12 @@ class AdService with ChangeNotifier {
     );
 
     _rewardedAd!.show(onUserEarnedReward: (ad, reward) => onRewardEarned());
+  }
+
+  @override
+  void dispose() {
+    _loadTimer?.cancel();
+    _rewardedAd?.dispose();
+    super.dispose();
   }
 }

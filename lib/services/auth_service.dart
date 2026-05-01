@@ -71,16 +71,27 @@ class AuthService with ChangeNotifier {
   }
 
   Future<void> _ensureUserDocument(User user, {String? initialName}) async {
-    final docRef = _db.collection('users').doc(user.uid);
-    final doc = await docRef.get();
-    
-    if (!doc.exists) {
-      await docRef.set({
-        'email': user.email,
-        'displayName': initialName ?? user.displayName,
-        'credits': 5,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+    try {
+      debugPrint('Intentando crear/verificar documento para UID: ${user.uid}');
+      final docRef = _db.collection('users').doc(user.uid);
+      final doc = await docRef.get().timeout(const Duration(seconds: 10));
+      
+      if (!doc.exists) {
+        debugPrint('El usuario no existe en Firestore. Creando...');
+        await docRef.set({
+          'email': user.email,
+          'displayName': initialName ?? user.displayName,
+          'credits': 5,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        debugPrint('¡Documento de usuario creado con éxito!');
+      } else {
+        debugPrint('El usuario ya existe en Firestore.');
+      }
+    } catch (e) {
+      debugPrint('FATAL: Error al conectar con Firestore: $e');
+      // Si el error contiene "permission-denied", es que las reglas fallaron
+      // Si el error contiene "API Key", es que el google-services.json está mal
     }
   }
 

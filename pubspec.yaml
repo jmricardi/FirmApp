@@ -1,7 +1,7 @@
 name: antigravity_scanner
 description: A new Flutter project.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.1.0+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -21,10 +21,12 @@ dependencies:
   path_provider: ^2.1.1
   gal: ^2.2.0
   provider: ^6.1.1
-  share_plus: ^13.1.0
+  share_plus: ^10.1.0 # Versión más compatible
   intl: ^0.20.2
   http: ^1.2.0
   shared_preferences: ^2.5.2
+  file_picker: ^8.1.1 # Ajustado
+  receive_sharing_intent: ^1.6.3
 
 dev_dependencies:
   flutter_test:

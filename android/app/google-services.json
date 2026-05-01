@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1061123254472-evmjnu9nvca07rlaq10hhkldgupgfd71.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.esencial.firmafacil774",
+            "certificate_hash": "8bb4f63c6ff93c3ee6260c135b7a3a56c0bbf31d"
+          }
+        },
+        {
           "client_id": "1061123254472-u3ivphrgluj7bhg54ddak2tmemsq6nag.apps.googleusercontent.com",
           "client_type": 3
         }

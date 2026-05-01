@@ -11,25 +11,43 @@ import 'core/theme.dart';
 import 'firebase_options.dart'; // Este archivo lo genera FlutterFire CLI
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  MobileAds.instance.initialize();
-  
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthService()),
-        ChangeNotifierProxyProvider<AuthService, CreditService>(
-          create: (_) => CreditService(),
-          update: (_, auth, credit) => credit!..updateUserId(auth.currentUser?.uid),
-        ),
-        ChangeNotifierProvider(create: (_) => AdService()),
-      ],
-      child: const EasyScanApp(),
-    ),
-  );
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
+    
+    // Inicializar Firebase (Crítico)
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    
+    // Inicializar AdMob (No crítico, si falla la app debe seguir)
+    try {
+      // La inicialización de anuncios ahora se maneja en AdService tras el consentimiento
+    } catch (e) {
+      debugPrint("Error inicializando AdMob: $e");
+    }
+
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AuthService()),
+          ChangeNotifierProxyProvider<AuthService, CreditService>(
+            create: (_) => CreditService(),
+            update: (_, auth, credit) => credit!..updateUserId(auth.currentUser?.uid),
+          ),
+          ChangeNotifierProvider(create: (_) => AdService()),
+        ],
+        child: const EasyScanApp(),
+      ),
+    );
+  } catch (e) {
+    debugPrint("Error crítico en el inicio: $e");
+    // Aun así intentamos arrancar la app para mostrar algo al usuario
+    runApp(MaterialApp(
+      home: Scaffold(
+        body: Center(child: Text("Error al iniciar la aplicación: $e")),
+      ),
+    ));
+  }
 }
 
 class EasyScanApp extends StatelessWidget {
@@ -38,7 +56,7 @@ class EasyScanApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'EasyScan',
+      title: 'FirmaFacil',
       theme: AppTheme.darkTheme,
       debugShowCheckedModeBanner: false,
       home: const SplashScreen(),
@@ -81,7 +99,7 @@ class _SplashScreenState extends State<SplashScreen> {
             const Icon(Icons.document_scanner_rounded, size: 100, color: Colors.deepPurpleAccent),
             const SizedBox(height: 24),
             const Text(
-              'EasyScan',
+              'FirmaFacil',
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,

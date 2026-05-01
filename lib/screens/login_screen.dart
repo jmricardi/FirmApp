@@ -12,91 +12,184 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
   bool _isLogin = true;
+  bool _isLoading = false;
+
+  void _showResetPasswordDialog() {
+    final resetController = TextEditingController(text: _emailController.text);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Recuperar Contraseña'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Te enviaremos un email para restablecer tu clave.', style: TextStyle(fontSize: 12)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: resetController,
+              decoration: const InputDecoration(labelText: 'Tu Email', border: OutlineInputBorder()),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await Provider.of<AuthService>(context, listen: false).resetPassword(resetController.text);
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email enviado con éxito.')));
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+              }
+            },
+            child: const Text('Enviar'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthService>(context);
 
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.auto_awesome, size: 80, color: Colors.deepPurpleAccent),
-              const SizedBox(height: 24),
-              Text(
-                'EasyScan',
-                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF1A1A1A), Color(0xFF000000)],
+          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              children: [
+                const Icon(Icons.document_scanner, size: 80, color: Colors.deepPurpleAccent),
+                const SizedBox(height: 16),
+                const Text(
+                  'FirmaFacil',
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 2),
                 ),
-              ),
-              const SizedBox(height: 48),
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Contraseña',
-                  prefixIcon: Icon(Icons.lock),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      if (_isLogin) {
-                        await auth.signInWithEmail(_emailController.text, _passwordController.text);
-                      } else {
-                        await auth.registerWithEmail(_emailController.text, _passwordController.text, "Usuario");
-                      }
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-                    }
-                  },
-                  child: Text(_isLogin ? 'Iniciar Sesión' : 'Registrarse'),
-                ),
-              ),
-              TextButton(
-                onPressed: () => setState(() => _isLogin = !_isLogin),
-                child: Text(_isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Ingresa'),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Row(
-                  children: [
-                    Expanded(child: Divider()),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('O'),
+                Text(_isLogin ? 'Ingresa a tu cuenta' : 'Regístrate gratis', style: const TextStyle(color: Colors.grey)),
+                const SizedBox(height: 48),
+                
+                if (!_isLogin) ...[
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre Completo',
+                      prefixIcon: Icon(Icons.person),
+                      filled: true,
+                      fillColor: Colors.white10,
                     ),
-                    Expanded(child: Divider()),
-                  ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                TextField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email),
+                    filled: true,
+                    fillColor: Colors.white10,
+                  ),
                 ),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => auth.signInWithGoogle(),
-                icon: const Icon(Icons.login),
-                label: const Text('Continuar con Google'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Contraseña',
+                    prefixIcon: Icon(Icons.lock),
+                    filled: true,
+                    fillColor: Colors.white10,
+                  ),
                 ),
-              ),
-            ],
+                
+                if (_isLogin)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _showResetPasswordDialog,
+                      child: const Text('¿Olvidaste tu clave?', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ),
+                  ),
+
+                const SizedBox(height: 24),
+                
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : () async {
+                      setState(() => _isLoading = true);
+                      try {
+                        if (_isLogin) {
+                          await auth.signInWithEmail(_emailController.text, _passwordController.text);
+                        } else {
+                          await auth.registerWithEmail(_emailController.text, _passwordController.text, _nameController.text);
+                        }
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                      } finally {
+                        setState(() => _isLoading = false);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isLogin ? Colors.deepPurpleAccent : Colors.greenAccent.shade700,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: _isLoading 
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(_isLogin ? 'INGRESAR' : 'CREAR CUENTA'),
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                TextButton(
+                  onPressed: () => setState(() => _isLogin = !_isLogin),
+                  child: Text(
+                    _isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Ingresa',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ),
+
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.white12)),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text('O', style: TextStyle(color: Colors.grey)),
+                      ),
+                      Expanded(child: Divider(color: Colors.white12)),
+                    ],
+                  ),
+                ),
+
+                OutlinedButton.icon(
+                  onPressed: () => auth.signInWithGoogle(),
+                  icon: const Icon(Icons.login),
+                  label: const Text('CONTINUAR CON GOOGLE'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                    side: const BorderSide(color: Colors.white24),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

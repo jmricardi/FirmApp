@@ -7,20 +7,12 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1061123254472:android:83fd3d7c7fadc17b7b5dfd",
+        "mobilesdk_app_id": "1:1061123254472:android:160329721e17a6447b5dfd",
         "android_client_info": {
-          "package_name": "com.easy.scan"
+          "package_name": "com.esencial.firmafacil774"
         }
       },
       "oauth_client": [
-        {
-          "client_id": "1061123254472-943i33707qatco35tetprtjf3c8ens8m.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.easy.scan",
-            "certificate_hash": "8bb4f63c6ff93c3ee6260c135b7a3a56c0bbf31d"
-          }
-        },
         {
           "client_id": "1061123254472-u3ivphrgluj7bhg54ddak2tmemsq6nag.apps.googleusercontent.com",
           "client_type": 3
@@ -37,6 +29,13 @@
             {
               "client_id": "1061123254472-u3ivphrgluj7bhg54ddak2tmemsq6nag.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "1061123254472-fs5ncp4soaqt9oss1jh8icru7i2l2pvs.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.antigravity.scanner.antigravityScanner"
+              }
             }
           ]
         }

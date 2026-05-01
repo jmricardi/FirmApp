@@ -10,31 +10,31 @@ class FAQScreen extends StatelessWidget {
         title: const Text('Preguntas Frecuentes'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         children: const [
           _FAQItem(
             question: '¿Qué es EasyScan?',
-            answer: 'Es una herramienta ligera que convierte la cámara de tu celular en un escáner profesional. Está diseñada para ser simple y rápida, sin procesos complejos que sobrecarguen o ralenticen tu dispositivo.',
+            answer: 'Es una aplicación ligera que convierte la cámara de tu celular en un escáner potente. Está optimizada para ser rápida y no sobrecargar la memoria de tu dispositivo.',
           ),
           _FAQItem(
             question: '¿Cómo funcionan los créditos?',
-            answer: 'Los créditos son la moneda de la aplicación. Se obtienen gratuitamente mirando breves anuncios publicitarios. \n\n'
-                    '• 1 Escaneo = 1 Crédito.\n'
-                    '• Reconocimiento de Texto (OCR) = +1 Crédito adicional.\n\n'
-                    'De esta forma, puedes usar todas las funciones sin pagar dinero real.',
+            answer: 'El uso de la herramienta se basa en créditos que puedes ganar mirando publicidad gratuita:\n'
+                '• Escaneo inicial: 1 crédito\n'
+                '• Guardar como JPG: 1 crédito\n'
+                '• Guardar como PDF: 1 crédito\n'
+                '• Reconocimiento de texto (OCR): 1 crédito adicional',
           ),
           _FAQItem(
             question: '¿Puedo usar la app sin internet?',
-            answer: '¡Sí! El escaneo y el reconocimiento de texto se realizan mediante algoritmos optimizados que corren localmente en tu celular. No necesitas internet para procesar tus documentos.\n\n'
-                    'Sin embargo, necesitarás conexión para sincronizar tus créditos o cargar nuevos anuncios.',
+            answer: 'Sí, puedes escanear y usar tus funciones siempre y cuando tengas créditos cargados previamente. Sin embargo, no podrás cargar nuevos créditos (ver publicidad) hasta que recuperes la conexión a internet.',
           ),
           _FAQItem(
-            question: '¿Mis documentos son privados?',
-            answer: 'Totalmente. EasyScan no envía tus imágenes a la nube para procesarlas. Todo el reconocimiento de imagen y texto se hace dentro de tu propio teléfono, garantizando que tu información nunca salga de tu dispositivo.',
+            question: '¿Mis documentos están seguros?',
+            answer: 'Totalmente. EasyScan utiliza algoritmos optimizados que corren localmente en tu celular. Tus documentos no se suben a la nube para el procesamiento de texto (OCR), garantizando tu privacidad.',
           ),
           _FAQItem(
             question: '¿Dónde se guardan mis archivos?',
-            answer: 'Todos tus documentos se guardan de forma organizada en la carpeta de Documentos de tu celular y en tu galería de fotos. La app mantiene un registro centralizado para que no tengas archivos duplicados ocupando espacio innecesario.',
+            answer: 'Todos los archivos se gestionan de forma centralizada en la carpeta interna de la app para evitar duplicados. Puedes exportarlos a tu galería pública o compartirlos en cualquier momento.',
           ),
         ],
       ),
@@ -51,14 +51,11 @@ class _FAQItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ExpansionTile(
-      title: Text(
-        question,
-        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurpleAccent),
-      ),
+      title: Text(question, style: const TextStyle(fontWeight: FontWeight.bold)),
       children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Text(answer, style: const TextStyle(height: 1.5)),
+          child: Text(answer),
         ),
       ],
     );

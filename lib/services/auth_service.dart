@@ -30,21 +30,44 @@ class AuthService with ChangeNotifier {
       final UserCredential userCredential = await _auth.signInWithCredential(credential);
       await _ensureUserDocument(userCredential.user!);
     } catch (e) {
+      debugPrint('Error en Google Sign In: $e');
       rethrow;
     }
   }
 
   Future<void> signInWithEmail(String email, String password) async {
-    await _auth.signInWithEmailAndPassword(email: email, password: password);
+    try {
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') throw 'No existe una cuenta con este email.';
+      if (e.code == 'wrong-password') throw 'Contraseña incorrecta.';
+      rethrow;
+    }
   }
 
   Future<void> registerWithEmail(String email, String password, String displayName) async {
-    final UserCredential credential = await _auth.createUserWithEmailAndPassword(
-      email: email, 
-      password: password,
-    );
-    await credential.user!.updateDisplayName(displayName);
-    await _ensureUserDocument(credential.user!, initialName: displayName);
+    try {
+      final UserCredential credential = await _auth.createUserWithEmailAndPassword(
+        email: email, 
+        password: password,
+      );
+      await credential.user!.updateDisplayName(displayName);
+      await _ensureUserDocument(credential.user!, initialName: displayName);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        throw 'Este email ya está registrado. Intenta iniciar sesión.';
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> resetPassword(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') throw 'No hay ninguna cuenta con este email.';
+      rethrow;
+    }
   }
 
   Future<void> _ensureUserDocument(User user, {String? initialName}) async {

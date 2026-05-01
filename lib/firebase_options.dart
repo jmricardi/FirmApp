@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyA1YSbalTXaU0cpHuOnUCBk4_8C-4tP_Go',
-    appId: '1:1061123254472:android:83fd3d7c7fadc17b7b5dfd',
+    appId: '1:1061123254472:android:160329721e17a6447b5dfd',
     messagingSenderId: '1061123254472',
     projectId: 'easyscan-ee1d4',
     storageBucket: 'easyscan-ee1d4.firebasestorage.app',

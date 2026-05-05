@@ -13,7 +13,7 @@ class FAQScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: const [
           _FAQItem(
-            question: '¿Qué es EasyScan?',
+            question: '¿Qué es FirmaFacil?',
             answer: 'Es una aplicación ligera que convierte la cámara de tu celular en un escáner potente. Está optimizada para ser rápida y no sobrecargar la memoria de tu dispositivo.',
           ),
           _FAQItem(
@@ -21,8 +21,7 @@ class FAQScreen extends StatelessWidget {
             answer: 'El uso de la herramienta se basa en créditos que puedes ganar mirando publicidad gratuita:\n'
                 '• Escaneo inicial: 1 crédito\n'
                 '• Guardar como JPG: 1 crédito\n'
-                '• Guardar como PDF: 1 crédito\n'
-                '• Reconocimiento de texto (OCR): 1 crédito adicional',
+                '• Guardar como PDF: 1 crédito',
           ),
           _FAQItem(
             question: '¿Puedo usar la app sin internet?',
@@ -30,7 +29,7 @@ class FAQScreen extends StatelessWidget {
           ),
           _FAQItem(
             question: '¿Mis documentos están seguros?',
-            answer: 'Totalmente. EasyScan utiliza algoritmos optimizados que corren localmente en tu celular. Tus documentos no se suben a la nube para el procesamiento de texto (OCR), garantizando tu privacidad.',
+            answer: 'Totalmente. FirmaFacil utiliza algoritmos optimizados que corren localmente en tu celular. Tus documentos no se suben a la nube para el procesamiento, garantizando tu privacidad.',
           ),
           _FAQItem(
             question: '¿Dónde se guardan mis archivos?',

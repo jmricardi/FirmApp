@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class AdService with ChangeNotifier {
   RewardedAd? _rewardedAd;
@@ -127,13 +128,18 @@ class AdService with ChangeNotifier {
     if (_rewardedAd == null) return;
 
     _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+      onAdShowedFullScreenContent: (ad) {
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      },
       onAdDismissedFullScreenContent: (ad) {
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
         ad.dispose();
         _rewardedAd = null;
         _isAdLoaded = false;
         loadRewardedAd(useTestId: false);
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
         ad.dispose();
         _rewardedAd = null;
         _isAdLoaded = false;

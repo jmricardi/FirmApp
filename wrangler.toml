@@ -1,9 +1,21 @@
 name = "easyscan-credits-worker"
 main = "cloudflare_worker.js"
-compatibility_date = "2024-04-29"
+compatibility_date = "2024-05-01"
 
+# Variables de entorno para seguridad e identificación
 [vars]
-FIREBASE_PROJECT_ID = "easyscan-ee1d4"
+WORker_SECRET = "SuperEasyScan2024"
+FIREBASE_PROJECT_ID = "easyscan-ee1d4" 
 
-# Nota: No pongas el WORKER_SECRET aquí por seguridad. 
-# Usa el comando: npx wrangler secret put WORKER_SECRET
+# Activación de la Inteligencia Artificial en el Worker
+[ai]
+binding = "AI"
+
+# Configuración de compatibilidad para evitar errores de red en peticiones grandes (como imágenes)
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "easyscan-db"
+database_id = "6575736f-44e1-4918-aec2-71911d767e89"

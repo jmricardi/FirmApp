@@ -1,0 +1,170 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
+import '../services/signature_service.dart';
+import '../services/credit_service.dart';
+import '../services/localization_service.dart';
+import '../services/settings_service.dart';
+
+class SignaturePreviewScreen extends StatefulWidget {
+  final String imagePath;
+  const SignaturePreviewScreen({super.key, required this.imagePath});
+
+  @override
+  State<SignaturePreviewScreen> createState() => _SignaturePreviewScreenState();
+}
+
+class _SignaturePreviewScreenState extends State<SignaturePreviewScreen> {
+  final Map<int, String> _versions = {}; // 0: Base, 1: Local, 2: Worker, 3: Premium
+  int _selectedVersion = 0;
+  bool _isProcessing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _versions[0] = widget.imagePath;
+  }
+
+  Future<void> _refineLocally() async {
+    setState(() => _isProcessing = true);
+    final service = SignatureService();
+    final newPath = await service.improveSignatureLocally(_versions[0]!);
+    if (newPath != null) {
+      setState(() {
+        _versions[1] = newPath;
+        _selectedVersion = 1;
+      });
+    }
+    setState(() => _isProcessing = false);
+  }
+
+  Future<void> _refineWithAI() async {
+    final credits = Provider.of<CreditService>(context, listen: false);
+    // Coste 0 ya que se cobra en la captura inicial
+    setState(() => _isProcessing = true);
+    try {
+      final bytes = await File(_versions[_selectedVersion] ?? _versions[0]!).readAsBytes();
+      final url = 'https://easyscan-credits-worker.jmricardi-3d1.workers.dev?action=refine_signature&uid=${credits.uid}&amount=0';
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Authorization': 'SuperEasyScan2024', 'Content-Type': 'image/png'},
+        body: bytes,
+      ).timeout(const Duration(seconds: 20));
+
+      if (response.statusCode == 200) {
+        final directory = await getApplicationDocumentsDirectory();
+        final newPath = '${directory.path}/Firma_IA_${DateTime.now().millisecondsSinceEpoch}.png';
+        await File(newPath).writeAsBytes(response.bodyBytes);
+        await credits.fetchCredits();
+        setState(() {
+          _versions[2] = newPath;
+          _selectedVersion = 2;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+
+
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = Provider.of<SettingsService>(context);
+    final lang = settings.localeCode;
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(title: Text(LocalizationService.translate('signature', lang)), backgroundColor: Colors.transparent),
+      body: Column(
+        children: [
+          // Selector de versiones
+          Container(
+            height: 60,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                _versionTab(0, 'BASE'),
+                if (_versions.containsKey(1)) _versionTab(1, 'NITIDEZ'),
+                if (_versions.containsKey(2)) _versionTab(2, 'IA WORKER'),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: _isProcessing 
+                ? const CircularProgressIndicator(color: Colors.deepPurpleAccent)
+                : Container(
+                    margin: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [BoxShadow(color: Colors.white.withOpacity(0.1), blurRadius: 20)],
+                    ),
+                    child: Image.file(File(_versions[_selectedVersion]!)),
+                  ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(color: Color(0xFF1A1A1A), borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!_versions.containsKey(1)) _refineBtn('Mejorar Nitidez', 'Filtro local gratuito', Icons.auto_awesome, _refineLocally, Colors.greenAccent),
+                if (!_versions.containsKey(2)) _refineBtn('IA Worker (GRATIS)', 'Proceso en la nube incluido', Icons.cloud, _refineWithAI, Colors.blueAccent),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, _versions[_selectedVersion]), 
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(vertical: 16)),
+                    child: const Text('GUARDAR SELECCIONADA', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _versionTab(int index, String label) {
+    bool isSelected = _selectedVersion == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedVersion = index),
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.deepPurpleAccent : Colors.white10,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? Colors.white : Colors.white24),
+        ),
+        child: Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  Widget _refineBtn(String title, String sub, IconData icon, VoidCallback tap, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        onTap: tap,
+        leading: Icon(icon, color: color),
+        title: Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)),
+        subtitle: Text(sub, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+        tileColor: color.withOpacity(0.05),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: color.withOpacity(0.3))),
+      ),
+    );
+  }
+}

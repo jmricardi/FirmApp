@@ -24,13 +24,19 @@ class _LoginScreenState extends State<LoginScreen> {
     final settings = Provider.of<SettingsService>(context);
     final lang = settings.localeCode;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
+      backgroundColor: colorScheme.surface,
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF1A1A1A), Color(0xFF000000)],
+            colors: isDark 
+              ? [const Color(0xFF1A1A1A), const Color(0xFF000000)]
+              : [const Color(0xFFF5F5F5), const Color(0xFFE0E0E0)],
           ),
         ),
         child: Center(
@@ -38,12 +44,8 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.all(32),
             child: Column(
               children: [
-                Image.asset('assets/logo.png', height: 140),
-                const SizedBox(height: 16),
-                Text(
-                  LocalizationService.translate('app_name', lang),
-                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 2),
-                ),
+                Image.asset('assets/icono.png', height: 160),
+                const SizedBox(height: 48),
                 Text(
                   _isLogin 
                     ? LocalizationService.translate('login_enter', lang)
@@ -55,12 +57,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (!_isLogin) ...[
                   TextField(
                     controller: _nameController,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: colorScheme.onSurface),
                     decoration: InputDecoration(
                       labelText: LocalizationService.translate('login_name', lang),
                       prefixIcon: const Icon(Icons.person, color: Colors.grey),
                       filled: true,
-                      fillColor: Colors.white10,
+                      fillColor: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
                       labelStyle: const TextStyle(color: Colors.grey),
                     ),
                   ),
@@ -69,12 +71,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 TextField(
                   controller: _emailController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: colorScheme.onSurface),
                   decoration: InputDecoration(
                     labelText: LocalizationService.translate('login_email', lang),
                     prefixIcon: const Icon(Icons.email, color: Colors.grey),
                     filled: true,
-                    fillColor: Colors.white10,
+                    fillColor: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
                     labelStyle: const TextStyle(color: Colors.grey),
                   ),
                 ),
@@ -82,12 +84,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: colorScheme.onSurface),
                   decoration: InputDecoration(
                     labelText: LocalizationService.translate('login_password', lang),
                     prefixIcon: const Icon(Icons.lock, color: Colors.grey),
                     filled: true,
-                    fillColor: Colors.white10,
+                    fillColor: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
                     labelStyle: const TextStyle(color: Colors.grey),
                   ),
                 ),
@@ -96,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: () {}, // Funcionalidad reset simplificada para demo
+                      onPressed: () {}, 
                       child: Text(
                         LocalizationService.translate('login_forgot', lang),
                         style: const TextStyle(color: Colors.grey, fontSize: 12),
@@ -126,6 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _isLogin ? Colors.deepPurpleAccent : Colors.greenAccent.shade700,
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: _isLoading 
@@ -147,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     _isLogin 
                       ? LocalizationService.translate('login_no_account', lang)
                       : LocalizationService.translate('login_has_account', lang),
-                    style: const TextStyle(color: Colors.white70),
+                    style: TextStyle(color: colorScheme.onSurface.withOpacity(0.7)),
                   ),
                 ),
 
@@ -155,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Row(
                     children: [
-                      const Expanded(child: Divider(color: Colors.white12)),
+                      Expanded(child: Divider(color: isDark ? Colors.white12 : Colors.black12)),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
@@ -163,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: const TextStyle(color: Colors.grey),
                         ),
                       ),
-                      const Expanded(child: Divider(color: Colors.white12)),
+                      Expanded(child: Divider(color: isDark ? Colors.white12 : Colors.black12)),
                     ],
                   ),
                 ),
@@ -174,7 +177,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   label: Text(LocalizationService.translate(_isLogin ? 'google_signin' : 'google_signup', lang)),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 50),
-                    side: const BorderSide(color: Colors.white24),
+                    foregroundColor: colorScheme.onSurface,
+                    side: BorderSide(color: isDark ? Colors.white24 : Colors.black12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -184,5 +188,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+
   }
 }

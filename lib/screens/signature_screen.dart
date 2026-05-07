@@ -150,14 +150,14 @@ class _SignatureScreenState extends State<SignatureScreen> {
           final resultPath = await _sigService.processSignaturePhoto(pathToProcess);
           
           if (resultPath != null && mounted) {
-            final selectedPath = await Navigator.push<String>(
+            final selectedPaths = await Navigator.push<List<String>>(
               context,
               MaterialPageRoute(
                 builder: (_) => SignaturePreviewScreen(imagePath: resultPath),
               ),
             );
             
-            if (selectedPath != null && mounted) {
+            if (selectedPaths != null && selectedPaths.isNotEmpty && mounted) {
               final credits = context.read<CreditService>();
               if (credits.credits < 2) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Créditos insuficientes (2 créditos)'), backgroundColor: Colors.redAccent));
@@ -165,7 +165,9 @@ class _SignatureScreenState extends State<SignatureScreen> {
               }
               final success = await credits.useCredit(amount: 2, description: "Captura de Firma (Foto)");
               if (success) {
-                await _sigService.finalizeSignature(selectedPath);
+                for (var path in selectedPaths) {
+                  await _sigService.finalizeSignature(path);
+                }
                 Navigator.pop(context, true);
               }
             }
@@ -225,14 +227,14 @@ class _SignatureScreenState extends State<SignatureScreen> {
           final resultPath = await _sigService.processSignaturePhoto(pathToProcess);
           
           if (resultPath != null && mounted) {
-            final selectedPath = await Navigator.push<String>(
+            final selectedPaths = await Navigator.push<List<String>>(
               context,
               MaterialPageRoute(
                 builder: (_) => SignaturePreviewScreen(imagePath: resultPath),
               ),
             );
             
-            if (selectedPath != null && mounted) {
+            if (selectedPaths != null && selectedPaths.isNotEmpty && mounted) {
               final credits = context.read<CreditService>();
               if (credits.credits < 2) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Créditos insuficientes (2 créditos)'), backgroundColor: Colors.redAccent));
@@ -240,7 +242,9 @@ class _SignatureScreenState extends State<SignatureScreen> {
               }
               final success = await credits.useCredit(amount: 2, description: "Importación de Firma (Foto)");
               if (success) {
-                await _sigService.finalizeSignature(selectedPath);
+                for (var path in selectedPaths) {
+                  await _sigService.finalizeSignature(path);
+                }
                 Navigator.pop(context, true);
               }
             }
@@ -314,9 +318,8 @@ class _SignatureScreenState extends State<SignatureScreen> {
                   ],
                 ),
               ),
-              const Divider(height: 1),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Row(
                   children: [
                     Expanded(
@@ -325,26 +328,29 @@ class _SignatureScreenState extends State<SignatureScreen> {
                         icon: const Icon(Icons.camera_alt),
                         label: Text(LocalizationService.translate('sig_photo_btn', lang)),
                         style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 50),
+                          minimumSize: const Size(double.infinity, 54),
                           backgroundColor: Colors.deepPurpleAccent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: _importPhoto,
                         icon: const Icon(Icons.image),
                         label: Text(LocalizationService.translate('import_sig', lang)),
                         style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 50),
+                          minimumSize: const Size(double.infinity, 54),
                           backgroundColor: Colors.deepPurple,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
+              SizedBox(height: MediaQuery.of(context).padding.bottom),
             ],
           ),
           if (_isProcessing)

@@ -143,6 +143,16 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
     debugPrint("DEBUG STAMP ADDED: Pos=${_currentSigPosInPoints.dx},${_currentSigPosInPoints.dy} | PageSize=${_pdfPageSize?.width}x${_pdfPageSize?.height}");
   }
 
+  void _undoLastStamp() {
+    setState(() {
+      final stamps = _stamps[_currentPageIndex];
+      if (stamps != null && stamps.isNotEmpty) {
+        stamps.removeLast();
+        if (stamps.isEmpty) _stamps.remove(_currentPageIndex);
+      }
+    });
+  }
+
   Future<void> _saveFinalPdf() async {
     if (_doc == null || _pdfPageSize == null) return;
     
@@ -156,7 +166,7 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
       return;
     }
 
-    setState(() { _isLoading = true; _saveProgress = "Aplanando y firmando..."; });
+    setState(() { _isLoading = true; _saveProgress = "Procesando firma(s)..."; });
     
     try {
       final success = await creditService.useCredit(amount: 1, description: "Firma de Documento PDF");
@@ -173,8 +183,8 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
         
         // 1. SELECCIÓN DINÁMICA DE FORMATO (Target)
         // Fijamos los puntos lógicos del papel (A4 Standard)
-        final double targetW = 595.27; 
-        final double targetH = 841.89;
+        final double targetW = PdfPageFormat.a4.width; 
+        final double targetH = PdfPageFormat.a4.height;
         final double targetAR = targetW / targetH;
 
         // 2. CÁLCULO DE DENSIDAD NATIVA (Sincronización Puntos vs Píxeles)
@@ -308,8 +318,8 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
               const Text('TINTA: ', style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
               const SizedBox(width: 8),
               _colorBtn(Colors.black), 
-              _colorBtn(Colors.blue.shade900),
-              _colorBtn(Colors.blue.shade400),
+              _colorBtn(const Color(0xFF00003F)), // Azul Medianoche (Tinta violácea)
+              _colorBtn(const Color(0xFF0D47A1)), // Azul Real (Anterior azul oscuro)
               _colorBtn(Colors.red.shade700),
               _colorBtn(Colors.green.shade700),
               const Spacer(),
@@ -338,8 +348,7 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
                   maxScale: 10.0,
                   minScale: 1.0, // BLINDAJE: El mínimo es el ancho real de la pantalla
                   boundaryMargin: const EdgeInsets.all(20), // ELIMINAMOS EL LIENZO GIGANTE
-                  child: Align(
-                    alignment: Alignment.topCenter,
+                  child: Center(
                     child: Container(
                       width: sheetWidth,
                       height: sheetHeight,
@@ -380,71 +389,86 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
               ],
             );
           })),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(color: Color(0xFF1A1A1A), borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-            child: Column(children: [
-                Row(children: [
-                  // Controles de tamaño compactos
-                  Container(
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(icon: const Icon(Icons.remove, color: Colors.white, size: 18), onPressed: () => setState(() { _currentSigWidthInPoints *= 0.9; _currentSigHeightInPoints *= 0.9; })),
-                        const Text('TAMAÑO', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold)),
-                        IconButton(icon: const Icon(Icons.add, color: Colors.white, size: 18), onPressed: () => setState(() { _currentSigWidthInPoints *= 1.1; _currentSigHeightInPoints *= 1.1; })),
-                      ],
+          SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(color: Color(0xFF1A1A1A), borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+              child: Column(children: [
+                  Row(children: [
+                    // Controles de tamaño compactos
+                    Container(
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(icon: const Icon(Icons.remove, color: Colors.white, size: 18), onPressed: () => setState(() { _currentSigWidthInPoints *= 0.9; _currentSigHeightInPoints *= 0.9; })),
+                          const Text('TAMAÑO', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold)),
+                          IconButton(icon: const Icon(Icons.add, color: Colors.white, size: 18), onPressed: () => setState(() { _currentSigWidthInPoints *= 1.1; _currentSigHeightInPoints *= 1.1; })),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Botón Incrustar
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _addStamp, 
-                      icon: const Icon(Icons.push_pin, size: 16), 
-                      label: const Text('INCRUSTAR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)), 
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurpleAccent, 
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                    const SizedBox(width: 8),
+                    // Botón Deshacer con marco
+                    OutlinedButton(
+                      onPressed: (_stamps[_currentPageIndex]?.isNotEmpty ?? false) ? _undoLastStamp : null,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.amberAccent,
+                        side: const BorderSide(color: Colors.amberAccent, width: 1.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Icon(Icons.undo, size: 20),
+                    ),
+                    const SizedBox(width: 8),
+                    // Botón Firmar (reemplaza Incrustar)
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _addStamp, 
+                        icon: const Icon(Icons.history_edu, size: 18), 
+                        label: const Text('FIRMAR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)), 
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepPurpleAccent, 
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                        )
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Botón Guardar Final
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _saveFinalPdf, 
+                        icon: const Icon(Icons.save, size: 16), 
+                        label: const Text('GUARDAR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)), 
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade700, 
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                        )
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 16),
+                  SizedBox(height: 80, child: ListView.builder(scrollDirection: Axis.horizontal, itemCount: _availableSignatures.length, itemBuilder: (context, index) {
+                    final sig = _availableSignatures[index];
+                    final isSelected = _selectedSignature?.path == sig.path;
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedSignature = sig), 
+                      child: Container(
+                        width: 100, 
+                        margin: const EdgeInsets.only(right: 12), 
+                        decoration: BoxDecoration(
+                          color: Colors.white, // FONDO BLANCO SOLIDO
+                          borderRadius: BorderRadius.circular(12), 
+                          border: Border.all(color: isSelected ? Colors.deepPurpleAccent : Colors.transparent, width: 2)
+                        ), 
+                        child: ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.file(sig, fit: BoxFit.fill))
                       )
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Botón Guardar Final
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _saveFinalPdf, 
-                      icon: const Icon(Icons.save, size: 16), 
-                      label: const Text('GUARDAR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)), 
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green.shade700, 
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
-                      )
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 16),
-                SizedBox(height: 80, child: ListView.builder(scrollDirection: Axis.horizontal, itemCount: _availableSignatures.length, itemBuilder: (context, index) {
-                  final sig = _availableSignatures[index];
-                  final isSelected = _selectedSignature?.path == sig.path;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedSignature = sig), 
-                    child: Container(
-                      width: 100, 
-                      margin: const EdgeInsets.only(right: 12), 
-                      decoration: BoxDecoration(
-                        color: Colors.white, // FONDO BLANCO SOLIDO
-                        borderRadius: BorderRadius.circular(12), 
-                        border: Border.all(color: isSelected ? Colors.deepPurpleAccent : Colors.transparent, width: 2)
-                      ), 
-                      child: ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.file(sig, fit: BoxFit.fill))
-                    )
-                  );
-                })),
-              ],
+                    );
+                  })),
+                ],
+              ),
             ),
           ),
       ]),

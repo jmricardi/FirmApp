@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/settings_service.dart';
 import '../services/localization_service.dart';
 import '../services/auth_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -81,11 +82,24 @@ class SettingsScreen extends StatelessWidget {
 
 
 
-          const Divider(height: 40, indent: 20, endIndent: 20),
+          _buildSectionTitle("Acerca de FirmaFacil"),
           ListTile(
             leading: const Icon(Icons.description_outlined),
             title: Text(LocalizationService.translate('terms', lang)),
-            onTap: () => Navigator.pushNamed(context, '/terms'),
+            subtitle: const Text('Condiciones de uso del servicio', style: TextStyle(fontSize: 12)),
+            onTap: () => _launchURL('https://arandulabs.dev/FirmaFacil/terms.html'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: const Text('Políticas de Privacidad'),
+            subtitle: const Text('Cómo protegemos tus datos', style: TextStyle(fontSize: 12)),
+            onTap: () => _launchURL('https://arandulabs.dev/FirmaFacil/privacy.html'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.code_rounded, color: Colors.blueAccent),
+            title: const Text('Desarrollado por Arandu Labs'),
+            subtitle: const Text('Visitar arandulabs.dev', style: TextStyle(fontSize: 12)),
+            onTap: () => _launchURL('https://arandulabs.dev'),
           ),
           ListTile(
             leading: const Icon(Icons.help_outline_rounded),
@@ -112,6 +126,17 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _launchURL(String url) async {
+    final uri = Uri.parse(url);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint("Error al abrir URL: $e");
+    }
+  }
+
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
@@ -127,3 +152,6 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 }
+
+// Asegúrate de importar url_launcher al inicio del archivo
+// import 'package:url_launcher/url_launcher.dart';

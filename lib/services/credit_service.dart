@@ -11,7 +11,6 @@ class CreditService with ChangeNotifier {
   final String _workerUrl = 'https://easyscan-credits-worker.jmricardi-3d1.workers.dev';
   final String _workerSecret = 'SuperEasyScan2024';
   List<dynamic> _history = [];
-  String _forceUpdateVersion = "";
   String _localVersion = "";
 
   CreditService(this._uid) {
@@ -25,7 +24,6 @@ class CreditService with ChangeNotifier {
   String? get uid => _uid;
   bool get isLoading => _isLoading;
   List<dynamic> get history => _history;
-  String get forceUpdateVersion => _forceUpdateVersion;
   String get localVersion => _localVersion;
 
   Future<void> fetchHistory() async {
@@ -66,8 +64,7 @@ class CreditService with ChangeNotifier {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         _credits = data['credits'] ?? 0;
-        _forceUpdateVersion = data['force_update_to'] ?? "";
-        debugPrint('Créditos obtenidos: $_credits | Force Update: $_forceUpdateVersion');
+        debugPrint('Créditos obtenidos: $_credits');
       } else {
         debugPrint('Error del servidor: ${response.statusCode}');
       }

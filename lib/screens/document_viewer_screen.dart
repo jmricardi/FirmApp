@@ -34,6 +34,19 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.files.isEmpty) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+        body: const Center(
+          child: Text(
+            "No hay documentos para visualizar",
+            style: TextStyle(color: Colors.white70),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -44,7 +57,9 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              widget.files[_currentIndex].path.split(Platform.pathSeparator).last,
+              _currentIndex < widget.files.length 
+                ? widget.files[_currentIndex].path.split(Platform.pathSeparator).last
+                : "Cargando...",
               style: const TextStyle(color: Colors.white, fontSize: 14),
               overflow: TextOverflow.ellipsis,
             ),
@@ -71,6 +86,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
           if (_isPdf(file.path)) {
             return PdfViewer.file(
               file.path,
+              key: ValueKey(file.path),
               params: const PdfViewerParams(
                 backgroundColor: Colors.black,
               ),

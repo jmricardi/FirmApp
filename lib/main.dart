@@ -11,6 +11,7 @@ import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/terms_screen.dart';
 import 'screens/faq_screen.dart';
+import 'services/remote_config_service.dart';
 import 'core/theme.dart';
 
 import 'package:pdfrx/pdfrx.dart';
@@ -23,6 +24,8 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  await RemoteConfigService().initialize();
 
   runApp(
     MultiProvider(

@@ -177,57 +177,60 @@ class _DocumentRefineScreenState extends State<DocumentRefineScreen> {
           ),
           
           // BARRA DE HERRAMIENTAS (Paso 5)
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-            color: const Color(0xFF1A1A1A),
-            child: Column(
-              children: [
-                // CONTROL DE INCLINACIÓN (Grado a Grado)
-                Row(
-                  children: [
-                    const Icon(Icons.rotate_left, color: Colors.white54, size: 18),
-                    Expanded(
-                      child: Slider(
-                        value: _tiltAngle,
-                        min: -15,
-                        max: 15,
-                        divisions: 30,
-                        activeColor: Colors.greenAccent,
-                        onChanged: (val) => setState(() => _tiltAngle = val),
+          SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+              color: const Color(0xFF1A1A1A),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // CONTROL DE INCLINACIÓN (Grado a Grado)
+                  Row(
+                    children: [
+                      const Icon(Icons.rotate_left, color: Colors.white54, size: 16),
+                      Expanded(
+                        child: Slider(
+                          value: _tiltAngle,
+                          min: -15,
+                          max: 15,
+                          divisions: 30,
+                          activeColor: Colors.greenAccent,
+                          onChanged: (val) => setState(() => _tiltAngle = val),
+                        ),
                       ),
-                    ),
-                    const Icon(Icons.rotate_right, color: Colors.white54, size: 18),
-                    const SizedBox(width: 8),
-                    Text('${_tiltAngle.toInt()}°', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                const Text('FORMATO DE SALIDA', 
-                  style: TextStyle(color: Colors.white70, fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _formatBtn('A4', PdfPageFormat.a4),
-                    _formatBtn('CARTA', PdfPageFormat.letter),
-                    _formatBtn('OFICIO', PdfPageFormat.legal),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  onPressed: _isProcessing ? null : _finish,
-                  icon: const Icon(Icons.check_circle_outline, size: 24),
-                  label: const Text("PROCESAR Y GUARDAR", 
-                    style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.greenAccent.shade700,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 54),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                    elevation: 5,
+                      const Icon(Icons.rotate_right, color: Colors.white54, size: 16),
+                      const SizedBox(width: 8),
+                      Text('${_tiltAngle.toInt()}°', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ],
                   ),
-                ),
-              ],
+                  const Text('FORMATO DE SALIDA', 
+                    style: TextStyle(color: Colors.white70, fontSize: 9, letterSpacing: 1.2, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _formatBtn('A4', PdfPageFormat.a4),
+                      _formatBtn('CARTA', PdfPageFormat.letter),
+                      _formatBtn('OFICIO', PdfPageFormat.legal),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: _isProcessing ? null : _finish,
+                    icon: const Icon(Icons.check_circle_outline, size: 22),
+                    label: const Text("PROCESAR Y GUARDAR", 
+                      style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.greenAccent.shade700,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      elevation: 5,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

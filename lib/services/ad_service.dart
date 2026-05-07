@@ -124,8 +124,11 @@ class AdService with ChangeNotifier {
     );
   }
 
-  void showRewardedAd({required Function onRewardEarned}) {
-    if (_rewardedAd == null) return;
+  Future<bool> showRewardedAd() async {
+    if (_rewardedAd == null) return false;
+    
+    final completer = Completer<bool>();
+    bool earned = false;
 
     _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (ad) {
@@ -137,6 +140,7 @@ class AdService with ChangeNotifier {
         _rewardedAd = null;
         _isAdLoaded = false;
         loadRewardedAd(useTestId: false);
+        if (!completer.isCompleted) completer.complete(earned);
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -144,10 +148,15 @@ class AdService with ChangeNotifier {
         _rewardedAd = null;
         _isAdLoaded = false;
         loadRewardedAd(useTestId: false);
+        if (!completer.isCompleted) completer.complete(false);
       },
     );
 
-    _rewardedAd!.show(onUserEarnedReward: (ad, reward) => onRewardEarned());
+    _rewardedAd!.show(onUserEarnedReward: (ad, reward) {
+      earned = true;
+    });
+
+    return completer.future;
   }
 
   @override

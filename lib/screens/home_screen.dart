@@ -18,6 +18,7 @@ import 'signature_screen.dart';
 import 'pdf_signature_screen.dart';
 import 'document_viewer_screen.dart';
 import 'document_refine_screen.dart';
+import '../services/remote_config_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -34,7 +35,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   final _picker = ImagePicker();
   List<File> _scannedDocs = [];
   List<File> _savedSignatures = [];
-  final Set<File> _selectedFiles = {};
+  final Set<String> _selectedFiles = {};
   bool _isProcessing = false;
   final Map<String, int> _pageCountCache = {};
   final Map<String, ui.Image> _thumbnailCache = {}; 
@@ -87,6 +88,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Future<void> _showPdfImportDialog(String path) async {
     PdfPageFormat selected = PdfPageFormat.a4;
     final creditService = context.read<CreditService>();
+    
+    setState(() => _isProcessing = true);
+    // Ajuste 6: Evaluación de medida más adecuada
+    try {
+      final doc = await render.PdfDocument.openFile(path);
+      if (doc.pages.isNotEmpty) {
+        final firstPage = doc.pages.first;
+        final pw = firstPage.width;
+        final ph = firstPage.height;
+        
+        // Comparación simple por área y proporción
+        if (pw > 600 || ph > 900) selected = PdfPageFormat.legal;
+        else if (pw > 550) selected = PdfPageFormat.letter;
+        else selected = PdfPageFormat.a4;
+      }
+    } catch (e) {
+      debugPrint("Error evaluando PDF: $e");
+    }
+    setState(() => _isProcessing = false);
+
+    if (!mounted) return;
 
     final result = await showDialog<PdfPageFormat>(
       context: context,
@@ -95,8 +117,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           title: Text("Normalizar PDF", style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Selecciona el formato para estandarizar todas las páginas del PDF importado:", 
+              const Text("Selecciona el formato para estandarizar todas las páginas. Sugerimos el marcado por sus dimensiones originales:", 
                 style: TextStyle(fontSize: 13)),
               const SizedBox(height: 20),
               _pageSizeBtn("A4 (Estándar)", PdfPageFormat.a4, selected, (fmt) => setDialogState(() => selected = fmt)),
@@ -106,10 +129,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurpleAccent, foregroundColor: Colors.white),
-              onPressed: () => Navigator.pop(context, selected), 
-              child: const Text("Procesar (1 🪙)")
+            SizedBox(
+              height: 50,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurpleAccent, 
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20)
+                ),
+                icon: const Icon(Icons.auto_fix_high, size: 18),
+                onPressed: () => Navigator.pop(context, selected), 
+                label: const Text("PROCESAR (1 🪙)", style: TextStyle(fontWeight: FontWeight.bold))
+              ),
             ),
           ],
         ),
@@ -117,10 +148,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
 
     if (result != null) {
-      if (creditService.credits < 1) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Créditos insuficientes'), backgroundColor: Colors.redAccent));
-        return;
-      }
+      // Ajuste 9: Verificar créditos con opción de anuncio
+      final hasCredits = await _ensureCredits(1, "normalizar este PDF");
+      if (!hasCredits) return;
       
       setState(() => _isProcessing = true);
       final success = await creditService.useCredit(amount: 1, description: "Importación de PDF Profesional");
@@ -130,6 +160,68 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       }
       setState(() => _isProcessing = false);
     }
+  }
+
+  // Ajuste 9: Flujo de créditos insuficientes + Publicidad
+  Future<bool> _ensureCredits(int required, String actionLabel) async {
+    final creditService = context.read<CreditService>();
+    final adService = context.read<AdService>();
+
+    while (creditService.credits < required) {
+      final res = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Consumer<CreditService>(
+          builder: (context, cs, _) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.stars, color: Colors.amber),
+                const SizedBox(width: 10),
+                Text("Créditos Insuficientes", style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("Necesitas $required 🪙 para $actionLabel.", style: const TextStyle(fontWeight: FontWeight.w500)),
+                const SizedBox(height: 8),
+                Text("Tu saldo actual: ${cs.credits} 🪙", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                const Text("¿Deseas ver un anuncio para ganar 1 🪙 y poder continuar?"),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Ahora no", style: TextStyle(color: Colors.grey))),
+              ElevatedButton(
+                onPressed: adService.isAdLoaded ? () => Navigator.pop(context, true) : null,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(180, 48),
+                  backgroundColor: Colors.deepPurpleAccent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text("Ver Anuncio (+1 🪙)", style: TextStyle(fontWeight: FontWeight.bold))
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (res == true) {
+        final earned = await adService.showRewardedAd();
+        if (earned) {
+          // Ajuste: Await para asegurar que el saldo se actualice antes de la siguiente iteración
+          await creditService.addCredit();
+        } else {
+          return false; // El usuario cerró el anuncio o falló
+        }
+      } else {
+        return false; // El usuario canceló
+      }
+    }
+    return true;
   }
 
   Future<void> _handleScan() async {
@@ -166,13 +258,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           }
         }
 
-        // El costo ahora es fijo para PDF Profesional (1 crédito)
-        if (creditService.credits < 1) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No tienes créditos suficientes (1 crédito)'), backgroundColor: Colors.redAccent)
-            );
-          }
+        // Ajuste 9: Verificar créditos con opción de anuncio
+        final hasCredits = await _ensureCredits(1, "guardar este documento");
+        if (!hasCredits) {
           await _scanner.clearTempScans();
           setState(() => _isProcessing = false);
           return;
@@ -213,6 +301,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _handleCaptureAction() async {
+    setState(() => _selectedFiles.clear());
     final lang = context.read<SettingsService>().localeCode;
     showModalBottomSheet(
       context: context,
@@ -253,6 +342,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _handleImport() async {
+    setState(() => _selectedFiles.clear());
     final creditService = context.read<CreditService>();
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -311,13 +401,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             return;
           }
           
-          // Uso de créditos (Fijo 1 para importación profesional)
-          if (creditService.credits < 1) {
-             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No tienes créditos suficientes (1 crédito)'), backgroundColor: Colors.redAccent)
-              );
-            }
+          // Ajuste 9: Verificar créditos con opción de anuncio
+          final hasCredits = await _ensureCredits(1, "importar esta imagen");
+          if (!hasCredits) {
             setState(() => _isProcessing = false);
             return;
           }
@@ -500,13 +586,38 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     final lang = context.watch<SettingsService>().localeCode;
     final creditService = context.watch<CreditService>();
-    final credits = creditService.credits;
     final adService = context.watch<AdService>();
+    final credits = creditService.credits;
 
-    // Lógica de Force Update
-    if (creditService.forceUpdateVersion.isNotEmpty && creditService.localVersion.isNotEmpty) {
-      if (_isVersionLower(creditService.localVersion, creditService.forceUpdateVersion)) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _showForceUpdateDialog(context, creditService.forceUpdateVersion));
+    // Ajuste 2: Mensaje de Bienvenida para nuevos usuarios
+    if (credits == 5 && creditService.history.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !Navigator.of(context).canPop()) { // Solo si estamos en el dashboard principal
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text("¡Bienvenido a FirmaFacil!", style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+              content: const Text("Gracias por elegirnos para gestionar tus documentos. Te hemos regalado 5 créditos iniciales para que pruebes todas nuestras funciones.\n\n¡Esperamos que te sea de gran utilidad!"),
+              actions: [
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context), 
+                  child: const Text("Comenzar")
+                )
+              ],
+            ),
+          );
+          // Forzamos un fetch para que no se repita el diálogo al refrescar
+          creditService.fetchHistory();
+        }
+      });
+    }
+
+    // Lógica de Force Update (Ahora vía Remote Config)
+    final remoteConfig = RemoteConfigService();
+    if (remoteConfig.forceUpdateVersion.isNotEmpty && creditService.localVersion.isNotEmpty) {
+      if (_isVersionLower(creditService.localVersion, remoteConfig.forceUpdateVersion)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _showForceUpdateDialog(context, remoteConfig.forceUpdateVersion));
       }
     }
     
@@ -515,7 +626,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/logo.png', height: 32),
+            Image.asset('assets/icono.png', height: 32),
             const SizedBox(width: 10),
             Text(
               'FirmaFacil',
@@ -528,7 +639,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ],
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () => Navigator.pushNamed(context, '/settings')),
+          IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () {
+            setState(() => _selectedFiles.clear());
+            Navigator.pushNamed(context, '/settings');
+          }),
           IconButton(icon: const Icon(Icons.logout), onPressed: () => context.read<AuthService>().signOut()),
         ],
       ),
@@ -572,7 +686,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: adService.isAdLoaded ? () => adService.showRewardedAd(onRewardEarned: () => context.read<CreditService>().addCredit()) : null,
+                      onTap: adService.isAdLoaded ? () async {
+                        final earned = await adService.showRewardedAd();
+                        if (earned) {
+                          context.read<CreditService>().addCredit();
+                        }
+                      } : null,
                       borderRadius: BorderRadius.circular(20),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -628,8 +747,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ],
               ),
             ),
-            ),
-            Expanded(child: Column(children: [
+          ),
+          Expanded(
+            child: Column(
+              children: [
               TabBar(
                 controller: _tabController,
                 tabs: [Tab(text: LocalizationService.translate('my_docs', lang)), Tab(text: LocalizationService.translate('signature', lang))], 
@@ -666,7 +787,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
         
         final file = docs[index];
-        final isSelected = _selectedFiles.contains(file);
+        final isSelected = _selectedFiles.contains(file.path);
         final isPdf = file.path.toLowerCase().endsWith('.pdf');
         
         String label = 'PDF';
@@ -676,7 +797,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         else if (file.path.contains('Firma_')) label = 'FIRMA';
 
         return GestureDetector(
-          onTap: () => setState(() => isSelected ? _selectedFiles.remove(file) : _selectedFiles.add(file)),
+          onTap: () => setState(() => isSelected ? _selectedFiles.remove(file.path) : _selectedFiles.add(file.path)),
           onLongPress: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DocumentViewerScreen(files: [file]))),
           child: Container(
             decoration: BoxDecoration(
@@ -820,74 +941,78 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-   Widget _buildBottomActions(String lang) {
-    return SafeArea(
-      child: Container(
-        height: 80, 
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16), 
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor, 
-          borderRadius: BorderRadius.circular(24), 
-          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 15, spreadRadius: 2)]
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: [
-                  _actionBtn(Icons.visibility, LocalizationService.translate('view', lang), Colors.deepPurpleAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => DocumentViewerScreen(files: _selectedFiles.toList()))), debugId: "btn_view"),
-                  _actionBtn(Icons.edit_document, LocalizationService.translate('sign', lang), Colors.orange, () async {
-                    final file = _selectedFiles.first;
-                    if (file.path.toLowerCase().endsWith('.pdf')) {
-                      final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => PdfSignatureScreen(pdfFile: file)));
-                      if (res == true) { _selectedFiles.clear(); _loadGallery(); }
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, convierte la imagen a PDF profesional primero.')));
-                    }
-                  }, debugId: "btn_sign"),
-                  _actionBtn(Icons.share, LocalizationService.translate('share', lang), Colors.blue, () { for (var f in _selectedFiles) _scanner.shareFile(f.path); }, debugId: "btn_share"),
-                  if (_selectedFiles.length == 1) ...[
-                    _actionBtn(Icons.edit, LocalizationService.translate('rename', lang), Colors.amber, () => _showRenameDialog(_selectedFiles.first), debugId: "btn_rename"),
-                  ],
-                  _actionBtn(Icons.delete, LocalizationService.translate('delete', lang), Colors.redAccent, () => _showDeleteDialog(_selectedFiles.toList()), debugId: "btn_delete"),
-                ],
-              ),
-            ),
-          ),
-          Container(
-            height: 40,
-            width: 1,
-            color: Theme.of(context).dividerColor.withOpacity(0.2),
-          ),
-          IconButton(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            icon: const Icon(Icons.close_rounded, color: Colors.grey),
-            onPressed: () => setState(() => _selectedFiles.clear()),
-          ),
-        ],
+  Widget _buildBottomActions(String lang) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10, offset: const Offset(0, -2))],
       ),
-    ),
-  );
-}
+      child: SafeArea(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _actionBtn(Icons.visibility, "Ver", () {
+              final filesToView = _selectedFiles.map((path) => File(path)).toList();
+              Navigator.push(context, MaterialPageRoute(builder: (_) => DocumentViewerScreen(files: filesToView)));
+              setState(() => _selectedFiles.clear());
+            }, "Visualiza el contenido de los documentos seleccionados.", color: Colors.blue),
+            
+            _actionBtn(Icons.history_edu, "Firmar", () {
+              final filePath = _selectedFiles.first;
+              if (_selectedFiles.length == 1 && filePath.toLowerCase().endsWith('.pdf')) {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => PdfSignatureScreen(pdfFile: File(filePath))))
+                  .then((result) {
+                    if (result == true) _loadGallery();
+                    setState(() => _selectedFiles.clear());
+                  });
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona exactamente un PDF para firmar')));
+              }
+            }, "Abre el editor para colocar una firma en el PDF seleccionado.", color: Colors.green),
 
-  Widget _actionBtn(IconData icon, String label, Color color, VoidCallback onTap, {String? debugId}) {
-    Widget content = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center, 
-        children: [
-          Icon(icon, color: color, size: 26), 
-          const SizedBox(height: 4),
-          Text(label, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w500))
-        ]
+            _actionBtn(Icons.delete, "Borrar", () {
+              final filesToDelete = _selectedFiles.map((path) => File(path)).toList();
+              _showDeleteDialog(filesToDelete);
+            }, "Elimina permanentemente los archivos seleccionados.", color: Colors.redAccent),
+
+            _actionBtn(Icons.share, "Compartir", () {
+              for (var path in _selectedFiles) _scanner.shareFile(path);
+              setState(() => _selectedFiles.clear());
+            }, "Envía los archivos seleccionados a otras aplicaciones.", color: Colors.indigo),
+
+            _actionBtn(Icons.edit, "Nombre", () {
+              if (_selectedFiles.length == 1) {
+                _showRenameDialog(File(_selectedFiles.first));
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona solo un archivo para renombrar')));
+              }
+            }, "Permite cambiar el nombre del archivo seleccionado.", color: Colors.orange),
+
+            _actionBtn(Icons.close, "X", () => setState(() => _selectedFiles.clear()), "Anula la selección actual y cierra este menú.", color: Colors.blueGrey),
+          ],
+        ),
       ),
     );
-    return InkWell(onTap: onTap, child: content);
   }
 
+  Widget _actionBtn(IconData icon, String label, VoidCallback? onTap, String helpText, {Color color = Colors.deepPurpleAccent}) {
+    return _HelpBalloon(
+      message: helpText,
+      isEnabled: _isHelpModeEnabled,
+      child: InkWell(
+        onTap: _isHelpModeEnabled ? null : onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: onTap == null ? Colors.grey : color, size: 24),
+            const SizedBox(height: 4),
+            Text(label, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: onTap == null ? Colors.grey : color)),
+          ],
+        ),
+      ),
+    );
+  }
   Widget _PdfThumbnail({required File file}) {
     if (_thumbnailCache.containsKey(file.path)) {
       return RawImage(image: _thumbnailCache[file.path]!, fit: BoxFit.cover);
@@ -972,6 +1097,60 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ],
         ),
       ),
+    );
+  }
+}
+
+// Ajuste 3: Componente de Globo de Ayuda
+class _HelpBalloon extends StatelessWidget {
+  final Widget child;
+  final String message;
+  final bool isEnabled;
+
+  const _HelpBalloon({required this.child, required this.message, required this.isEnabled});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        GestureDetector(
+          onTap: isEnabled ? () {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.info_outline, color: Colors.amber, size: 40),
+                    const SizedBox(height: 16),
+                    Text(message, textAlign: TextAlign.center, style: GoogleFonts.outfit(fontSize: 14)),
+                  ],
+                ),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(context), child: const Text("Entendido"))
+                ],
+              ),
+            );
+          } : null,
+          child: child,
+        ),
+        if (isEnabled)
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Colors.amber,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.black, width: 1),
+              ),
+              child: const Icon(Icons.help, size: 8, color: Colors.black),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -39,7 +39,10 @@ class AuthService with ChangeNotifier {
 
   Future<void> signInWithEmail(String email, String password) async {
     try {
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      final UserCredential credential = await _auth.signInWithEmailAndPassword(email: email, password: password);
+      if (credential.user != null) {
+        await _ensureUserDocument(credential.user!);
+      }
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') throw 'No existe una cuenta con este email.';
       if (e.code == 'wrong-password') throw 'Contraseña incorrecta.';
@@ -74,52 +77,53 @@ class AuthService with ChangeNotifier {
 
   Future<void> _ensureUserDocument(User user, {String? initialName}) async {
     try {
-      debugPrint('Intentando crear/verificar documento para UID: ${user.uid}');
+      debugPrint('Verificando perfil Firestore para UID: ${user.uid}');
       final docRef = _db.collection('users').doc(user.uid);
       final doc = await docRef.get().timeout(const Duration(seconds: 10));
       
+      final packageInfo = await PackageInfo.fromPlatform();
       final bool docExists = doc.exists;
       final Map<String, dynamic>? data = docExists ? (doc.data() as Map<String, dynamic>?) : null;
-      
-      // Si el documento no existe, o le faltan campos críticos (como email o créditos), inicializamos/reparamos
-      if (!docExists || data == null || !data.containsKey('credits') || !data.containsKey('email')) {
-        debugPrint('Inicializando o reparando documento de usuario...');
-        final packageInfo = await PackageInfo.fromPlatform();
-        
-        final Map<String, dynamic> userData = {
-          'email': user.email ?? data?['email'] ?? '',
-          'displayName': initialName ?? user.displayName ?? data?['displayName'] ?? 'Usuario',
-          'credits': data?['credits'] ?? 5, // Preservamos créditos si ya existían, sino 5
-          'app_version': packageInfo.version,
-          'force_update_to': data?['force_update_to'] ?? '',
-          'lastActive': FieldValue.serverTimestamp(),
-        };
 
-        if (!docExists) {
-          userData['createdAt'] = FieldValue.serverTimestamp();
-        }
+      // 1. Datos base que SIEMPRE se actualizan (Conexión, Versión)
+      final Map<String, dynamic> updates = {
+        'lastActive': FieldValue.serverTimestamp(),
+        'app_version': packageInfo.version,
+        'email': user.email ?? data?['email'] ?? '',
+      };
 
-        await docRef.set(userData, SetOptions(merge: true));
+      // 2. Si el documento NO existe, inicializamos valores de bienvenida
+      if (!docExists || data == null || !data.containsKey('credits')) {
+        debugPrint('Inicializando nuevo perfil de usuario con créditos de bienvenida...');
         
-        // Registramos en el historial de D1 a través del worker
-        try {
-          // Usamos 'log' para registrar la entrada sin intentar actualizar Firestore (ya lo hicimos arriba)
-          http.get(
-            Uri.parse('https://easyscan-credits-worker.jmricardi-3d1.workers.dev?action=log&uid=${user.uid}&amount=5&desc=Regalo%20de%20Bienvenida'),
-            headers: {'Authorization': 'SuperEasyScan2024'},
-          );
-        } catch (e) {
-          debugPrint('Error al registrar historial de bienvenida: $e');
+        updates['createdAt'] = data?['createdAt'] ?? FieldValue.serverTimestamp();
+        updates['displayName'] = initialName ?? user.displayName ?? data?['displayName'] ?? 'Usuario';
+        
+        // Solo damos créditos si realmente no tiene el campo (evita duplicar en login)
+        if (data == null || !data.containsKey('credits')) {
+          updates['credits'] = 5;
+          updates['total_spent'] = 0;
+          updates['total_earned'] = 5;
+
+          // Registro en historial externo (Worker D1)
+          try {
+            await http.get(
+              Uri.parse('https://easyscan-credits-worker.jmricardi-3d1.workers.dev?action=log&uid=${user.uid}&amount=5&desc=Regalo%20de%20Bienvenida'),
+              headers: {'Authorization': 'SuperEasyScan2024'},
+            ).timeout(const Duration(seconds: 10));
+            debugPrint('Historial de bienvenida registrado en D1.');
+          } catch (e) {
+            debugPrint('Aviso: No se pudo registrar en historial D1: $e');
+          }
         }
-        
-        debugPrint('¡Documento de usuario creado con éxito!');
-      } else {
-        debugPrint('El usuario ya existe en Firestore.');
       }
+
+      // 3. Guardar/Actualizar en Firestore
+      await docRef.set(updates, SetOptions(merge: true));
+      debugPrint('Perfil actualizado/verificado con éxito en Firestore.');
+
     } catch (e) {
-      debugPrint('FATAL: Error al conectar con Firestore: $e');
-      // Si el error contiene "permission-denied", es que las reglas fallaron
-      // Si el error contiene "API Key", es que el google-services.json está mal
+      debugPrint('ERROR CRÍTICO en _ensureUserDocument: $e');
     }
   }
 

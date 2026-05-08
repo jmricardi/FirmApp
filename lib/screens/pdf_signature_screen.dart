@@ -204,10 +204,10 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
         final double originalPageH = page.height;
         final double originalAR = originalPageW / originalPageH;
         
-        // 1. SELECCIÓN DINÁMICA DE FORMATO (Target)
-        // Fijamos los puntos lógicos del papel (A4 Standard)
-        final double targetW = PdfPageFormat.a4.width; 
-        final double targetH = PdfPageFormat.a4.height;
+        // 1. SELECCIÓN DINÁMICA DE FORMATO (Respetar tamaño original)
+        // Usamos las dimensiones originales de la página para evitar desplazamientos por estiramiento
+        final double targetW = originalPageW; 
+        final double targetH = originalPageH;
         final double targetAR = targetW / targetH;
 
         // 2. CÁLCULO DE DENSIDAD NATIVA (Sincronización Puntos vs Píxeles)
@@ -247,20 +247,17 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
             final sigUiImg = sigFrame.image;
             
             // MAPEO CRÍTICO: De Puntos PDF (UI) a Píxeles de Canvas
-            // La firma está en "puntos" relativos a la página original.
-            // Si la página se estira/encoge para llenar el canvas, debemos escalar la firma.
-            
+            // Usamos el tamaño original de la página como base absoluta
             final double scaleX = canvasPixelsW / originalPageW;
             final double scaleY = canvasPixelsH / originalPageH;
             
-            // Ajuste de precisión: Compensación de offset vertical (Problema 5)
-            // Se añade un pequeño offset de corrección para sincronizar perfectamente con la vista del InteractiveViewer
-            final pxX = stamp.positionInPoints.dx * scaleX;
-            final pxY = (stamp.positionInPoints.dy * scaleY) + (4.5 * scaleY); // Corrección aumentada para evitar desplazamiento hacia arriba
-            final pxW = stamp.widthInPoints * scaleX;
-            final pxH = stamp.heightInPoints * scaleY;
+            // Calculamos la posición en píxeles basándonos en la posición lógica capturada
+            final double pxX = stamp.positionInPoints.dx * scaleX;
+            final double pxY = stamp.positionInPoints.dy * scaleY; 
+            final double pxW = stamp.widthInPoints * scaleX;
+            final double pxH = stamp.heightInPoints * scaleY;
             
-            debugPrint("DEBUG DRAW STAMP [$i]: LogicalPos=${stamp.positionInPoints} | CanvasPos=($pxX, $pxY) | Scale=($scaleX, $scaleY)");
+            debugPrint("DEBUG DRAW STAMP [$i]: LogicalPos=${stamp.positionInPoints} | CanvasPos=($pxX, $pxY) | Page=$originalPageW x $originalPageH");
 
             canvas.drawImageRect(
               sigUiImg,

@@ -678,6 +678,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           _HelpBalloon(
             message: "Configura las preferencias de la aplicación y el idioma.",
             isEnabled: _isHelpModeEnabled,
+            balloonAlignment: Alignment.topLeft,
             child: IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () {
               setState(() => _selectedFiles.clear());
               Navigator.pushNamed(context, '/settings');
@@ -686,6 +687,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           _HelpBalloon(
             message: "Cierra tu sesión de forma segura.",
             isEnabled: _isHelpModeEnabled,
+            balloonAlignment: Alignment.topLeft,
             child: IconButton(icon: const Icon(Icons.logout), onPressed: () => context.read<AuthService>().signOut()),
           ),
         ],
@@ -699,157 +701,173 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // Bloque de Créditos (Principal) - REDUCIDO
                     Expanded(
-                    child: _HelpBalloon(
-                      message: "Muestra tus créditos disponibles para firmar y procesar documentos.",
-                      isEnabled: _isHelpModeEnabled,
-                      child: GestureDetector(
-                        onTap: _showHistorySheet,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.deepPurpleAccent.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.1)),
+                      flex: 2,
+                      child: _HelpBalloon(
+                        message: "Muestra tus créditos disponibles para firmar y procesar documentos.",
+                        isEnabled: _isHelpModeEnabled,
+                        child: GestureDetector(
+                          onTap: _showHistorySheet,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.deepPurpleAccent.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.1)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.stars, color: Colors.amber, size: 20),
+                                const SizedBox(width: 4),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text('CREDITS', style: GoogleFonts.outfit(fontSize: 8, color: Colors.grey, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                                    Text('$credits', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.stars, color: Colors.amber, size: 20),
-                              const SizedBox(width: 8),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    // Botón de Anuncio (+1) - AHORA EN SEGUNDA POSICIÓN
+                    Expanded(
+                      flex: 2,
+                      child: _HelpBalloon(
+                        message: "Mira un anuncio corto para ganar 1 crédito gratis.",
+                        isEnabled: _isHelpModeEnabled,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: adService.isAdLoaded ? () async {
+                              final earned = await adService.showRewardedAd();
+                              if (earned) context.read<CreditService>().addCredit();
+                            } : null,
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: adService.isAdLoaded ? Colors.green.withOpacity(0.1) : Colors.white.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: adService.isAdLoaded ? Colors.green.withOpacity(0.2) : Colors.white10),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text('CRÉDITOS', style: GoogleFonts.outfit(fontSize: 9, color: Colors.grey, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
-                                  Text('$credits', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold)),
+                                  Icon(
+                                    adService.isAdLoaded ? Icons.play_circle_fill : Icons.play_circle_outline, 
+                                    color: adService.isAdLoaded ? Colors.green : Colors.grey.withOpacity(0.5),
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    adService.isAdLoaded ? '+1' : '...', 
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 14, 
+                                      fontWeight: FontWeight.bold,
+                                      color: adService.isAdLoaded ? Colors.green : Colors.grey.withOpacity(0.5)
+                                    )
+                                  ),
                                 ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Botón de Recomendación (+5 Créditos)
-                  _HelpBalloon(
-                    message: "Recomienda la app a un amigo y gana 5 créditos gratis.",
-                    isEnabled: _isHelpModeEnabled,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: _handleRecommend,
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.blueAccent.withOpacity(0.1),
+                    const SizedBox(width: 6),
+                    // Botón de Recomendación (+5) - AHORA EN TERCERA POSICIÓN
+                    Expanded(
+                      flex: 2,
+                      child: _HelpBalloon(
+                        message: "Recomienda la app a un amigo y gana 5 créditos gratis.",
+                        isEnabled: _isHelpModeEnabled,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _handleRecommend,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.blueAccent.withOpacity(0.2)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.person_add_alt_1, color: Colors.blueAccent, size: 22),
-                              const SizedBox(width: 6),
-                              Text('+5 🪙', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
-                            ],
+                            child: Container(
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: Colors.blueAccent.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.blueAccent.withOpacity(0.2)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.person_add_alt_1, color: Colors.blueAccent, size: 20),
+                                  const SizedBox(width: 4),
+                                  Text('+5', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  _HelpBalloon(
-                    message: "Mira un anuncio corto para ganar 1 crédito gratis.",
-                    isEnabled: _isHelpModeEnabled,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: adService.isAdLoaded ? () async {
-                          final earned = await adService.showRewardedAd();
-                          if (earned) {
-                            context.read<CreditService>().addCredit();
-                          }
-                        } : null,
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: adService.isAdLoaded ? Colors.green.withOpacity(0.1) : Colors.white.withOpacity(0.05),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      flex: 1,
+                      child: _HelpBalloon(
+                        message: "Activa/Desactiva el modo de ayuda interactiva.",
+                        isEnabled: false,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => setState(() => _isHelpModeEnabled = !_isHelpModeEnabled),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: adService.isAdLoaded ? Colors.green.withOpacity(0.2) : Colors.white10),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                adService.isAdLoaded ? Icons.play_circle_fill : Icons.play_circle_outline, 
-                                color: adService.isAdLoaded ? Colors.green : Colors.grey,
+                            child: Container(
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: _isHelpModeEnabled ? Colors.amber.withOpacity(0.1) : Colors.white.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: _isHelpModeEnabled ? Colors.amber : Colors.grey.withOpacity(0.5)),
+                              ),
+                              child: Icon(
+                                _isHelpModeEnabled ? Icons.help : Icons.help_outline, 
+                                color: _isHelpModeEnabled ? Colors.amber : Colors.grey,
                                 size: 22,
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                '+1 🪙', 
-                                style: GoogleFonts.outfit(
-                                  fontSize: 13, 
-                                  fontWeight: FontWeight.bold,
-                                  color: adService.isAdLoaded ? Colors.green : Colors.grey
-                                )
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => setState(() => _isHelpModeEnabled = !_isHelpModeEnabled),
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: _isHelpModeEnabled ? Colors.amber.withOpacity(0.1) : Colors.white.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: _isHelpModeEnabled ? Colors.amber : Colors.grey.withOpacity(0.5)),
-                        ),
-                        child: Icon(
-                          _isHelpModeEnabled ? Icons.help : Icons.help_outline, 
-                          color: _isHelpModeEnabled ? Colors.amber : Colors.grey,
-                          size: 26,
-                        ),
-                      ),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: Column(
+                children: [
+                  _HelpBalloon(
+                    message: "Alterna entre tus documentos PDF y tus firmas guardadas.",
+                    isEnabled: _isHelpModeEnabled,
+                    child: TabBar(
+                      controller: _tabController,
+                      tabs: [Tab(text: LocalizationService.translate('my_docs', lang)), Tab(text: LocalizationService.translate('signature', lang))], 
+                      indicatorColor: Colors.deepPurpleAccent, 
+                      labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold)
                     ),
                   ),
+                  Expanded(child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildDocumentGrid(_scannedDocs, GridMode.import), 
+                      _buildDocumentGrid(_savedSignatures, GridMode.signature)
+                    ]
+                  )),
                 ],
               ),
             ),
-          ),
-          Expanded(
-            child: Column(
-              children: [
-              _HelpBalloon(
-                message: "Alterna entre tus documentos PDF y tus firmas guardadas.",
-                isEnabled: _isHelpModeEnabled,
-                child: TabBar(
-                  controller: _tabController,
-                  tabs: [Tab(text: LocalizationService.translate('my_docs', lang)), Tab(text: LocalizationService.translate('signature', lang))], 
-                  indicatorColor: Colors.deepPurpleAccent, 
-                  labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold)
-                ),
-              ),
-              Expanded(child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildDocumentGrid(_scannedDocs, GridMode.import), 
-                  _buildDocumentGrid(_savedSignatures, GridMode.signature)
-                ]
-              )),
-            ])),
           ]),
           if (_isProcessing) Container(color: Colors.black54, child: const Center(child: CircularProgressIndicator())),
         ],
@@ -957,6 +975,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildAddButton() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return _HelpBalloon(
       message: "Usa la cámara o importa un PDF para empezar a trabajar.",
       isEnabled: _isHelpModeEnabled,
@@ -964,35 +983,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         onTap: _handleCaptureAction,
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.deepPurpleAccent.withOpacity(0.05),
+            color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.2), style: BorderStyle.solid),
+            border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.2), width: 2),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  Icon(Icons.camera_enhance_outlined, size: 56, color: Colors.deepPurpleAccent.withOpacity(0.8)),
-                  Positioned(
-                    bottom: 4,
-                    right: 4,
-                    child: Container(
-                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                      child: const Icon(Icons.add_circle, size: 24, color: Colors.deepPurpleAccent),
-                    ),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurpleAccent.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ],
+                  child: Icon(Icons.camera_enhance_rounded, size: 48, color: Colors.deepPurpleAccent.withOpacity(0.7)),
+                ),
               ),
-              const SizedBox(height: 16),
-              Text(
-                "Capturar\narchivo",
-                textAlign: TextAlign.center,
-                style: GoogleFonts.outfit(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.deepPurpleAccent,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                child: Text(
+                  "Capturar documento",
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.deepPurpleAccent),
                 ),
               ),
             ],
@@ -1003,6 +1018,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildAddSignatureButton() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return _HelpBalloon(
       message: "Dibuja una nueva firma para usar en tus documentos.",
       isEnabled: _isHelpModeEnabled,
@@ -1013,22 +1029,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         },
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.orangeAccent.withOpacity(0.05),
+            color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.orangeAccent.withOpacity(0.2), style: BorderStyle.solid),
+            border: Border.all(color: Colors.orangeAccent.withOpacity(0.2), width: 2),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.gesture_rounded, size: 56, color: Colors.orangeAccent),
-              const SizedBox(height: 16),
-              Text(
-                "Capturar\nfirma",
-                textAlign: TextAlign.center,
-                style: GoogleFonts.outfit(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orangeAccent,
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orangeAccent.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.gesture_rounded, size: 48, color: Colors.orangeAccent.withOpacity(0.7)),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                child: Text(
+                  "Capturar firma",
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.orangeAccent),
                 ),
               ),
             ],
@@ -1099,18 +1124,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       isEnabled: _isHelpModeEnabled,
       child: InkWell(
         onTap: _isHelpModeEnabled ? null : onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: onTap == null ? Colors.grey : color, size: 28),
-              if (label.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(label, style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: onTap == null ? Colors.grey : color)),
-              ],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: onTap == null ? Colors.grey : color, size: 24),
+            if (label.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(label, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: onTap == null ? Colors.grey : color)),
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -1208,8 +1230,14 @@ class _HelpBalloon extends StatelessWidget {
   final Widget child;
   final String message;
   final bool isEnabled;
+  final Alignment balloonAlignment;
 
-  const _HelpBalloon({required this.child, required this.message, required this.isEnabled});
+  const _HelpBalloon({
+    required this.child, 
+    required this.message, 
+    required this.isEnabled,
+    this.balloonAlignment = Alignment.topRight,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1243,7 +1271,8 @@ class _HelpBalloon extends StatelessWidget {
             ),
           ),
           Positioned(
-            right: -4,
+            left: balloonAlignment == Alignment.topLeft ? -4 : null,
+            right: balloonAlignment == Alignment.topRight ? -4 : null,
             top: -4,
             child: Container(
               padding: const EdgeInsets.all(2),

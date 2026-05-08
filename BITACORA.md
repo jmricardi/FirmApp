@@ -66,4 +66,31 @@ Este documento registra los problemas técnicos encontrados durante el desarroll
 ### 8. Errores de Posicionamiento por Zoom
 - **Problema**: Al colocar una firma con zoom aplicado, esta aparecía en lugares incorrectos.
 - **Causa**: El delta del gesto no se dividía por el factor de escala actual del `TransformationController`.
+
+### 9. Desplazamiento de Firma en Exportación
+- **Problema**: La firma aparecía movida verticalmente en el PDF final (`realidad.jpg` vs `usuario.jpg`).
+- **Causa**: Se estaba forzando el formato **A4** en la exportación, lo que estiraba o centraba el documento original si este tenía otro tamaño (Carta/Oficio), rompiendo el mapa de coordenadas.
+- **Solución**: Se eliminó el forzado a A4. Ahora el motor de exportación detecta y utiliza el **tamaño original exacto** de cada página, garantizando una sincronización 1:1 de las coordenadas.
+
+### 10. Migración de Install Referrer
+- **Cambio**: Se reemplazó el paquete descontinuado `android_play_install_referrer` por el nuevo estándar `play_install_referrer` (^0.5.0).
+- **Impacto**: Mejora la estabilidad en la captura de referidos desde Google Play y asegura compatibilidad futura con Android 14+.
+
+### 11. Refinamiento de UI y UX (Dashboard)
+- **Problema**: El encabezado se veía desequilibrado y los botones de captura no coincidían con el estilo de los documentos.
+- **Solución**: 
+    - Se redistribuyeron los pesos en el encabezado (`flex`) y se restituyeron los iconos de acción.
+    - Se rediseñaron los botones de **"Capturar archivo"** y **"Capturar firma"** como tarjetas estandarizadas que mantienen la simetría visual de la galería.
+### 12. Corrección Final de Coordenadas de Firma
+- **Problema**: Persistía un desplazamiento vertical (firma aparecía más arriba de lo seleccionado).
+- **Solución**: Refactorización del mapeo de coordenadas en `_saveFinalPdf` usando el tamaño físico absoluto del PDF. Se eliminaron constantes de ajuste manual y se sincronizó el canvas de Flutter con los puntos nativos del documento.
+
+### 13. Refinamientos Estéticos Finales
+- **Cabecera**: 
+    - Aumento de tamaño de iconos (20px) y textos en bloques de Créditos y Publicidad.
+    - El botón de ayuda (`?`) ahora es rectangular para mantener la simetría de la fila.
+    - Se invirtió el orden de los botones de **Publicidad** y **Compartir** para mejorar el flujo de usuario.
+- **Galería**:
+    - Renombrado de "Capturar archivo" a **"Capturar documento"**.
+    - Aumento de tamaño y peso de fuente (`bold`, 12px) en los botones de acción de la cuadrícula.
 ---

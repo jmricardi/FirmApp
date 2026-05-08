@@ -19,6 +19,7 @@ import 'pdf_signature_screen.dart';
 import 'document_viewer_screen.dart';
 import 'document_refine_screen.dart';
 import '../services/remote_config_service.dart';
+import 'package:share_plus/share_plus.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -65,10 +66,29 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final docs = await _scanner.getScannedDocuments();
     if (mounted) {
       setState(() {
-        _scannedDocs = docs.where((f) => !f.path.contains('Firma_')).toList();
-        _savedSignatures = docs.where((f) => f.path.contains('Firma_')).toList();
+        _scannedDocs = docs.where((f) {
+          final name = f.path.split(Platform.pathSeparator).last;
+          return !name.startsWith('Firma_');
+        }).toList();
+        _savedSignatures = docs.where((f) {
+          final name = f.path.split(Platform.pathSeparator).last;
+          return name.startsWith('Firma_');
+        }).toList();
       });
     }
+  }
+
+  Future<void> _handleRecommend() async {
+    final user = context.read<AuthService>().currentUser;
+    if (user == null) return;
+
+    final String inviteMsg = 
+      "¡Hola! Te recomiendo FirmaFacil para escanear y firmar documentos PDF desde tu celular. "
+      "Es súper rápida y profesional. Descárgala aquí: "
+      "https://firmafacil.page.link/invite?ref=${user.uid}\n\n"
+      "¡Si te registras con este link, ambos recibiremos 5 creditos de beneficios!";
+
+    await Share.share(inviteMsg, subject: 'Te recomiendo FirmaFacil');
   }
 
   Future<int> _getPageCount(File file) async {
@@ -590,24 +610,40 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final credits = creditService.credits;
 
     // Ajuste 2: Mensaje de Bienvenida para nuevos usuarios
-    if (credits == 5 && creditService.history.isEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !Navigator.of(context).canPop()) { // Solo si estamos en el dashboard principal
+    if (!context.read<SettingsService>().hasSeenWelcome && credits == 5 && creditService.history.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (mounted && !Navigator.of(context).canPop()) { 
+          // Marcamos como visto antes de mostrar para evitar colisiones de build
+          await context.read<SettingsService>().setWelcomeSeen();
+          
+          if (!mounted) return;
+
           showDialog(
             context: context,
-            builder: (context) => AlertDialog(
+            barrierDismissible: false,
+            builder: (dialogContext) => AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               title: Text("¡Bienvenido a FirmaFacil!", style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
               content: const Text("Gracias por elegirnos para gestionar tus documentos. Te hemos regalado 5 créditos iniciales para que pruebes todas nuestras funciones.\n\n¡Esperamos que te sea de gran utilidad!"),
               actions: [
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context), 
-                  child: const Text("Comenzar")
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurpleAccent,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(180, 50), // BOTÓN MÁS ANCHO
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => Navigator.of(dialogContext).pop(), 
+                      child: const Text("Comenzar", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
+                    ),
+                  ),
                 )
               ],
             ),
           );
-          // Forzamos un fetch para que no se repita el diálogo al refrescar
           creditService.fetchHistory();
         }
       });
@@ -639,11 +675,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ],
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () {
-            setState(() => _selectedFiles.clear());
-            Navigator.pushNamed(context, '/settings');
-          }),
-          IconButton(icon: const Icon(Icons.logout), onPressed: () => context.read<AuthService>().signOut()),
+          _HelpBalloon(
+            message: "Configura las preferencias de la aplicación y el idioma.",
+            isEnabled: _isHelpModeEnabled,
+            child: IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () {
+              setState(() => _selectedFiles.clear());
+              Navigator.pushNamed(context, '/settings');
+            }),
+          ),
+          _HelpBalloon(
+            message: "Cierra tu sesión de forma segura.",
+            isEnabled: _isHelpModeEnabled,
+            child: IconButton(icon: const Icon(Icons.logout), onPressed: () => context.read<AuthService>().signOut()),
+          ),
         ],
       ),
       body: Stack(
@@ -656,69 +700,106 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
-                    child: GestureDetector(
-                      onTap: _showHistorySheet,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.deepPurpleAccent.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.1)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.stars, color: Colors.amber, size: 24),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text('Tus Créditos', style: GoogleFonts.outfit(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w600, letterSpacing: 1)),
-                                Text('$credits', style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ],
+                    child: _HelpBalloon(
+                      message: "Muestra tus créditos disponibles para firmar y procesar documentos.",
+                      isEnabled: _isHelpModeEnabled,
+                      child: GestureDetector(
+                        onTap: _showHistorySheet,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.deepPurpleAccent.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.1)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.stars, color: Colors.amber, size: 20),
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('CRÉDITOS', style: GoogleFonts.outfit(fontSize: 9, color: Colors.grey, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                                  Text('$credits', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: adService.isAdLoaded ? () async {
-                        final earned = await adService.showRewardedAd();
-                        if (earned) {
-                          context.read<CreditService>().addCredit();
-                        }
-                      } : null,
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: adService.isAdLoaded ? Colors.green.withOpacity(0.1) : Colors.white.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: adService.isAdLoaded ? Colors.green.withOpacity(0.2) : Colors.white10),
+                  // Botón de Recomendación (+5 Créditos)
+                  _HelpBalloon(
+                    message: "Recomienda la app a un amigo y gana 5 créditos gratis.",
+                    isEnabled: _isHelpModeEnabled,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _handleRecommend,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.blueAccent.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.blueAccent.withOpacity(0.2)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.person_add_alt_1, color: Colors.blueAccent, size: 22),
+                              const SizedBox(width: 6),
+                              Text('+5 🪙', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+                            ],
+                          ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              adService.isAdLoaded ? Icons.play_circle_fill : Icons.play_circle_outline, 
-                              color: adService.isAdLoaded ? Colors.green : Colors.grey,
-                              size: 26,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '+1 🪙', 
-                              style: GoogleFonts.outfit(
-                                fontSize: 14, 
-                                fontWeight: FontWeight.bold,
-                                color: adService.isAdLoaded ? Colors.green : Colors.grey
-                              )
-                            ),
-                          ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _HelpBalloon(
+                    message: "Mira un anuncio corto para ganar 1 crédito gratis.",
+                    isEnabled: _isHelpModeEnabled,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: adService.isAdLoaded ? () async {
+                          final earned = await adService.showRewardedAd();
+                          if (earned) {
+                            context.read<CreditService>().addCredit();
+                          }
+                        } : null,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: adService.isAdLoaded ? Colors.green.withOpacity(0.1) : Colors.white.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: adService.isAdLoaded ? Colors.green.withOpacity(0.2) : Colors.white10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                adService.isAdLoaded ? Icons.play_circle_fill : Icons.play_circle_outline, 
+                                color: adService.isAdLoaded ? Colors.green : Colors.grey,
+                                size: 22,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '+1 🪙', 
+                                style: GoogleFonts.outfit(
+                                  fontSize: 13, 
+                                  fontWeight: FontWeight.bold,
+                                  color: adService.isAdLoaded ? Colors.green : Colors.grey
+                                )
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -751,11 +832,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           Expanded(
             child: Column(
               children: [
-              TabBar(
-                controller: _tabController,
-                tabs: [Tab(text: LocalizationService.translate('my_docs', lang)), Tab(text: LocalizationService.translate('signature', lang))], 
-                indicatorColor: Colors.deepPurpleAccent, 
-                labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold)
+              _HelpBalloon(
+                message: "Alterna entre tus documentos PDF y tus firmas guardadas.",
+                isEnabled: _isHelpModeEnabled,
+                child: TabBar(
+                  controller: _tabController,
+                  tabs: [Tab(text: LocalizationService.translate('my_docs', lang)), Tab(text: LocalizationService.translate('signature', lang))], 
+                  indicatorColor: Colors.deepPurpleAccent, 
+                  labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold)
+                ),
               ),
               Expanded(child: TabBarView(
                 controller: _tabController,
@@ -796,70 +881,74 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         else if (file.path.contains('LGL_')) label = 'OFICIO';
         else if (file.path.contains('Firma_')) label = 'FIRMA';
 
-        return GestureDetector(
-          onTap: () => setState(() => isSelected ? _selectedFiles.remove(file.path) : _selectedFiles.add(file.path)),
-          onLongPress: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DocumentViewerScreen(files: [file]))),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isSelected ? Colors.deepPurpleAccent.withOpacity(0.1) : (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03)),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: isSelected ? Colors.deepPurpleAccent : Colors.transparent, width: 2),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Stack(children: [
-                Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: (mode == GridMode.signature) 
-                            ? Colors.white 
-                            : (isDark ? Colors.black26 : Colors.white24),
-                        borderRadius: BorderRadius.circular(12),
+        return _HelpBalloon(
+          message: mode == GridMode.signature ? "Toca para gestionar esta firma guardada." : "Toca para seleccionar, mantén presionado para visualizar.",
+          isEnabled: _isHelpModeEnabled,
+          child: GestureDetector(
+            onTap: () => setState(() => isSelected ? _selectedFiles.remove(file.path) : _selectedFiles.add(file.path)),
+            onLongPress: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DocumentViewerScreen(files: [file]))),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.deepPurpleAccent.withOpacity(0.1) : (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03)),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: isSelected ? Colors.deepPurpleAccent : Colors.transparent, width: 2),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(children: [
+                  Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Expanded(
+                      child: Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: (mode == GridMode.signature) 
+                              ? Colors.white 
+                              : (isDark ? Colors.black26 : Colors.white24),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: isPdf 
+                          ? _PdfThumbnail(file: file)
+                          : (file.path.toLowerCase().endsWith('.jpg') || file.path.toLowerCase().endsWith('.png') 
+                              ? Image.file(file, fit: (mode == GridMode.signature ? BoxFit.contain : BoxFit.cover)) 
+                              : Icon(Icons.description, size: 40, color: Colors.blueAccent)),
                       ),
-                      child: isPdf 
-                        ? _PdfThumbnail(file: file)
-                        : (file.path.toLowerCase().endsWith('.jpg') || file.path.toLowerCase().endsWith('.png') 
-                            ? Image.file(file, fit: (mode == GridMode.signature ? BoxFit.contain : BoxFit.cover)) 
-                            : Icon(Icons.description, size: 40, color: Colors.blueAccent)),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 12), 
-                    child: Text(
-                      file.path.split(Platform.pathSeparator).last.replaceFirst(RegExp(r'^(A4_|LTR_|LGL_)'), ''), 
-                      maxLines: 1, 
-                      overflow: TextOverflow.ellipsis, 
-                      style: GoogleFonts.outfit(fontSize: 10, color: textColor)
-                    )
-                  ),
-                ])),
-                Positioned(top: 8, left: 8, child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.deepPurpleAccent.withOpacity(0.9), borderRadius: BorderRadius.circular(6)), child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)))),
-                if (isPdf)
-                  Positioned(top: 8, right: 8, child: FutureBuilder<int>(
-                    future: _getPageCount(file),
-                    builder: (context, snapshot) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(6)),
-                      child: Text('${snapshot.data ?? "?"}', style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 12), 
+                      child: Text(
+                        file.path.split(Platform.pathSeparator).last.replaceFirst(RegExp(r'^(A4_|LTR_|LGL_)'), ''), 
+                        maxLines: 1, 
+                        overflow: TextOverflow.ellipsis, 
+                        style: GoogleFonts.outfit(fontSize: 10, color: textColor)
+                      )
                     ),
-                  )),
-                Positioned(
-                  top: 8, left: 0, right: 0,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: (isPdf ? Colors.redAccent : Colors.blueAccent).withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(6),
+                  ])),
+                  Positioned(top: 8, left: 8, child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.deepPurpleAccent.withOpacity(0.9), borderRadius: BorderRadius.circular(6)), child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)))),
+                  if (isPdf)
+                    Positioned(top: 8, right: 8, child: FutureBuilder<int>(
+                      future: _getPageCount(file),
+                      builder: (context, snapshot) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(6)),
+                        child: Text('${snapshot.data ?? "?"}', style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
                       ),
-                      child: Text(isPdf ? "PDF" : "IMG", style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                    )),
+                  Positioned(
+                    top: 8, left: 0, right: 0,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: (isPdf ? Colors.redAccent : Colors.blueAccent).withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(isPdf ? "PDF" : "IMG", style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                      ),
                     ),
                   ),
-                ),
-              ]),
+                ]),
+              ),
             ),
           ),
         );
@@ -868,74 +957,82 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildAddButton() {
-    return GestureDetector(
-      onTap: _handleCaptureAction,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.deepPurpleAccent.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.2), style: BorderStyle.solid),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(Icons.camera_enhance_outlined, size: 56, color: Colors.deepPurpleAccent.withOpacity(0.8)),
-                Positioned(
-                  bottom: 4,
-                  right: 4,
-                  child: Container(
-                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                    child: const Icon(Icons.add_circle, size: 24, color: Colors.deepPurpleAccent),
+    return _HelpBalloon(
+      message: "Usa la cámara o importa un PDF para empezar a trabajar.",
+      isEnabled: _isHelpModeEnabled,
+      child: GestureDetector(
+        onTap: _handleCaptureAction,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.deepPurpleAccent.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.2), style: BorderStyle.solid),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(Icons.camera_enhance_outlined, size: 56, color: Colors.deepPurpleAccent.withOpacity(0.8)),
+                  Positioned(
+                    bottom: 4,
+                    right: 4,
+                    child: Container(
+                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                      child: const Icon(Icons.add_circle, size: 24, color: Colors.deepPurpleAccent),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              "Capturar\narchivo",
-              textAlign: TextAlign.center,
-              style: GoogleFonts.outfit(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.deepPurpleAccent,
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Text(
+                "Capturar\narchivo",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepPurpleAccent,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildAddSignatureButton() {
-    return GestureDetector(
-      onTap: () async {
-        final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const SignatureScreen()));
-        if (result == true) _loadGallery();
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.orangeAccent.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.orangeAccent.withOpacity(0.2), style: BorderStyle.solid),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.gesture_rounded, size: 32, color: Colors.orangeAccent),
-            const SizedBox(height: 8),
-            Text(
-              "Capturar\nfirma",
-              textAlign: TextAlign.center,
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.orangeAccent,
+    return _HelpBalloon(
+      message: "Dibuja una nueva firma para usar en tus documentos.",
+      isEnabled: _isHelpModeEnabled,
+      child: GestureDetector(
+        onTap: () async {
+          final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const SignatureScreen()));
+          if (result == true) _loadGallery();
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.orangeAccent.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.orangeAccent.withOpacity(0.2), style: BorderStyle.solid),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.gesture_rounded, size: 56, color: Colors.orangeAccent),
+              const SizedBox(height: 16),
+              Text(
+                "Capturar\nfirma",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orangeAccent,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -989,7 +1086,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               }
             }, "Permite cambiar el nombre del archivo seleccionado.", color: Colors.orange),
 
-            _actionBtn(Icons.close, "X", () => setState(() => _selectedFiles.clear()), "Anula la selección actual y cierra este menú.", color: Colors.blueGrey),
+            _actionBtn(Icons.close, "", () => setState(() => _selectedFiles.clear()), "Anula la selección actual y cierra este menú.", color: Colors.blueGrey),
           ],
         ),
       ),
@@ -1002,13 +1099,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       isEnabled: _isHelpModeEnabled,
       child: InkWell(
         onTap: _isHelpModeEnabled ? null : onTap,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: onTap == null ? Colors.grey : color, size: 24),
-            const SizedBox(height: 4),
-            Text(label, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: onTap == null ? Colors.grey : color)),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: onTap == null ? Colors.grey : color, size: 28),
+              if (label.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(label, style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: onTap == null ? Colors.grey : color)),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -1114,32 +1216,35 @@ class _HelpBalloon extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        GestureDetector(
-          onTap: isEnabled ? () {
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.info_outline, color: Colors.amber, size: 40),
-                    const SizedBox(height: 16),
-                    Text(message, textAlign: TextAlign.center, style: GoogleFonts.outfit(fontSize: 14)),
-                  ],
-                ),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(context), child: const Text("Entendido"))
-                ],
-              ),
-            );
-          } : null,
-          child: child,
-        ),
-        if (isEnabled)
+        child,
+        if (isEnabled) ...[
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.info_outline, color: Colors.amber, size: 40),
+                        const SizedBox(height: 16),
+                        Text(message, textAlign: TextAlign.center, style: GoogleFonts.outfit(fontSize: 14)),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context), child: const Text("Entendido"))
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
           Positioned(
-            right: 0,
-            top: 0,
+            right: -4,
+            top: -4,
             child: Container(
               padding: const EdgeInsets.all(2),
               decoration: BoxDecoration(
@@ -1150,6 +1255,7 @@ class _HelpBalloon extends StatelessWidget {
               child: const Icon(Icons.help, size: 8, color: Colors.black),
             ),
           ),
+        ],
       ],
     );
   }

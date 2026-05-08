@@ -11,6 +11,7 @@ import '../services/signature_service.dart';
 import '../services/localization_service.dart';
 import '../services/settings_service.dart';
 import '../services/credit_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SignatureStamp {
   final File signatureFile;
@@ -54,6 +55,8 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
   double _currentSigWidthInPoints = 180; // Aumentado para mejor visibilidad inicial
   double _currentSigHeightInPoints = 100; // Aumentado para mejor visibilidad inicial
   Color _inkColor = Colors.black;
+  double _selectedDpi = 250.0; // Default to Medium
+  bool _isSaving = false;
   
   final Map<int, List<SignatureStamp>> _stamps = {};
 
@@ -166,14 +169,34 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
       return;
     }
 
-    setState(() { _isLoading = true; _saveProgress = "Procesando firma(s)..."; });
+    setState(() { _isSaving = true; });
     
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: Colors.blueAccent),
+            const SizedBox(height: 24),
+            Text("Procesando Documento", style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text("Calidad: ${_selectedDpi.toInt()} DPI", style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            const SizedBox(height: 16),
+            const Text("Esto puede tardar unos segundos dependiendo del número de páginas.", textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 10)),
+          ],
+        ),
+      ),
+    );
+
     try {
       final success = await creditService.useCredit(amount: 1, description: "Firma de Documento PDF");
       if (!success) throw Exception("Error al procesar créditos");
 
       final pdf = pw.Document();
-      const flattenScale = 4.166; // 300 DPI Calibration
       
       for (int i = 0; i < _totalPages; i++) {
         final page = _doc!.pages[i];
@@ -188,8 +211,8 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
         final double targetAR = targetW / targetH;
 
         // 2. CÁLCULO DE DENSIDAD NATIVA (Sincronización Puntos vs Píxeles)
-        // Usamos una escala de alta resolución (350 DPI aprox)
-        const double targetDpi = 350.0;
+        // Usamos una escala dinámica basada en la selección del usuario
+        final double targetDpi = _selectedDpi;
         final double nativeScale = targetDpi / 72.0; // Factor de conversión real
         
         final int canvasPixelsW = (targetW * nativeScale).toInt();
@@ -230,8 +253,10 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
             final double scaleX = canvasPixelsW / originalPageW;
             final double scaleY = canvasPixelsH / originalPageH;
             
+            // Ajuste de precisión: Compensación de offset vertical (Problema 5)
+            // Se añade un pequeño offset de corrección para sincronizar perfectamente con la vista del InteractiveViewer
             final pxX = stamp.positionInPoints.dx * scaleX;
-            final pxY = stamp.positionInPoints.dy * scaleY;
+            final pxY = (stamp.positionInPoints.dy * scaleY) + (4.5 * scaleY); // Corrección aumentada para evitar desplazamiento hacia arriba
             final pxW = stamp.widthInPoints * scaleX;
             final pxH = stamp.heightInPoints * scaleY;
             
@@ -278,12 +303,16 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
       
       final directory = await getApplicationDocumentsDirectory();
       final originalName = widget.pdfFile.path.split(Platform.pathSeparator).last.split('.').first;
-      final fileName = '${originalName}_firmado.pdf';
+      // Ajuste Nomenclatura (Problema 4): Usar prefijo FirmaFacil_ para que sea detectado por el ScannerService
+      final fileName = 'FF_SIGNED_${originalName}_${DateTime.now().millisecondsSinceEpoch}.pdf';
       final outputFile = File('${directory.path}/scans/$fileName');
       if (!outputFile.parent.existsSync()) outputFile.parent.createSync();
       await outputFile.writeAsBytes(await pdf.save());
       
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context); // Cerrar el diálogo de "Procesando Documento"
+        Navigator.pop(context, true); // Volver al Home indicando que hubo cambios
+      }
     } catch (e) {
       debugPrint("DEBUG SAVE ERROR: $e");
     } finally {
@@ -312,22 +341,61 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
       appBar: AppBar(title: const Text('Firmar Documento')),
       body: Column(children: [
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
             color: Colors.black,
             child: Row(children: [
-              const Text('TINTA: ', style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+              // Texto TINTA más compacto o removido si es necesario
+              const Text('INK:', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _colorBtn(Colors.black), 
+                      _colorBtn(const Color(0xFF00003F)), 
+                      _colorBtn(const Color(0xFF0D47A1)), 
+                      _colorBtn(Colors.red.shade700),
+                      _colorBtn(Colors.green.shade700),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(width: 8),
-              _colorBtn(Colors.black), 
-              _colorBtn(const Color(0xFF00003F)), // Azul Medianoche (Tinta violácea)
-              _colorBtn(const Color(0xFF0D47A1)), // Azul Real (Anterior azul oscuro)
-              _colorBtn(Colors.red.shade700),
-              _colorBtn(Colors.green.shade700),
-              const Spacer(),
-              Text('${_currentPageIndex + 1} / $_totalPages', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              IconButton(icon: const Icon(Icons.chevron_left, color: Colors.white), onPressed: _currentPageIndex > 0 ? () => _loadPage(_currentPageIndex - 1) : null),
-              IconButton(icon: const Icon(Icons.chevron_right, color: Colors.white), onPressed: _currentPageIndex < _totalPages - 1 ? () => _loadPage(_currentPageIndex + 1) : null),
+              Text('${_currentPageIndex + 1} / $_totalPages', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+              IconButton(
+                constraints: const BoxConstraints(maxWidth: 32),
+                padding: EdgeInsets.zero,
+                icon: const Icon(Icons.chevron_left, color: Colors.white, size: 20), 
+                onPressed: _currentPageIndex > 0 ? () => _loadPage(_currentPageIndex - 1) : null
+              ),
+              IconButton(
+                constraints: const BoxConstraints(maxWidth: 32),
+                padding: EdgeInsets.zero,
+                icon: const Icon(Icons.chevron_right, color: Colors.white, size: 20), 
+                onPressed: _currentPageIndex < _totalPages - 1 ? () => _loadPage(_currentPageIndex + 1) : null
+              ),
             ]),
           ),
+          
+          // Selector de Calidad (DPI)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade900,
+              border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1))),
+            ),
+            child: Row(
+              children: [
+                const Text('CALIDAD:', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 12),
+                _qualityBtn("BAJA", 150.0),
+                _qualityBtn("MEDIA", 250.0),
+                _qualityBtn("ALTA", 350.0),
+              ],
+            ),
+          ),
+
           Expanded(child: LayoutBuilder(builder: (context, constraints) {
             if (_pdfPageSize == null) return const SizedBox();
             
@@ -474,13 +542,43 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
       ]),
     );
   }
+  
+  Widget _qualityBtn(String label, double dpi) {
+    bool isSelected = _selectedDpi == dpi;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedDpi = dpi),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        margin: const EdgeInsets.only(right: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blueAccent : Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isSelected ? Colors.blueAccent : Colors.white24),
+        ),
+        child: Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
 
   Widget _buildStamp(SignatureStamp stamp, double displayScale) {
     return Positioned(left: stamp.positionInPoints.dx * displayScale, top: stamp.positionInPoints.dy * displayScale, child: SizedBox(width: stamp.widthInPoints * displayScale, height: stamp.heightInPoints * displayScale, child: ColorFiltered(colorFilter: ColorFilter.mode(stamp.color, BlendMode.srcIn), child: Image.file(stamp.signatureFile, fit: BoxFit.fill))));
   }
 
   Widget _colorBtn(Color color) {
-    return GestureDetector(onTap: () => setState(() => _inkColor = color), child: Container(width: 28, height: 28, margin: const EdgeInsets.only(right: 12), decoration: BoxDecoration(color: color, shape: BoxShape.circle, border: Border.all(color: _inkColor == color ? Colors.white : Colors.white24, width: 2), boxShadow: _inkColor == color ? [BoxShadow(color: color.withOpacity(0.5), blurRadius: 8)] : null)));
+    return GestureDetector(
+      onTap: () => setState(() => _inkColor = color), 
+      child: Container(
+        width: 24, // Reducido de 28
+        height: 24, 
+        margin: const EdgeInsets.only(right: 8), // Reducido de 12
+        decoration: BoxDecoration(
+          color: color, 
+          shape: BoxShape.circle, 
+          border: Border.all(color: _inkColor == color ? Colors.white : Colors.white24, width: 2), 
+          boxShadow: _inkColor == color ? [BoxShadow(color: color.withOpacity(0.5), blurRadius: 6)] : null
+        )
+      )
+    );
   }
 
   @override

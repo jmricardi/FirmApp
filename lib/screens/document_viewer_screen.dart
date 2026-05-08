@@ -71,9 +71,13 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.share, color: Colors.white),
-            onPressed: () => Share.shareXFiles([XFile(widget.files[_currentIndex].path)]),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: IconButton(
+              iconSize: 28,
+              icon: const Icon(Icons.share, color: Colors.white),
+              onPressed: () => Share.shareXFiles([XFile(widget.files[_currentIndex].path)]),
+            ),
           ),
         ],
       ),

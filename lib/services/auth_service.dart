@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -107,14 +108,35 @@ class AuthService with ChangeNotifier {
 
           // Registro en historial externo (Worker D1)
           try {
-            await http.get(
-              Uri.parse('https://easyscan-credits-worker.jmricardi-3d1.workers.dev?action=log&uid=${user.uid}&amount=5&desc=Regalo%20de%20Bienvenida'),
-              headers: {'Authorization': 'SuperEasyScan2024'},
-            ).timeout(const Duration(seconds: 10));
-            debugPrint('Historial de bienvenida registrado en D1.');
+            final prefs = await SharedPreferences.getInstance();
+            final String? refCode = prefs.getString('pending_referral');
+
+            if (refCode != null && refCode != user.uid) {
+              // Proceso de Referido (Ambos ganan)
+              await http.get(
+                Uri.parse('https://easyscan-credits-worker.jmricardi-3d1.workers.dev?action=referral&uid=${user.uid}&ref=$refCode'),
+                headers: {'Authorization': 'SuperEasyScan2024'},
+              ).timeout(const Duration(seconds: 10));
+              debugPrint('Referido procesado con éxito para ref: $refCode');
+              await prefs.remove('pending_referral'); // Limpiar para no duplicar
+            } else {
+              // Regalo de Bienvenida normal
+              await http.get(
+                Uri.parse('https://easyscan-credits-worker.jmricardi-3d1.workers.dev?action=log&uid=${user.uid}&amount=5&desc=Regalo%20de%20Bienvenida'),
+                headers: {'Authorization': 'SuperEasyScan2024'},
+              ).timeout(const Duration(seconds: 10));
+              debugPrint('Historial de bienvenida registrado en D1.');
+            }
           } catch (e) {
             debugPrint('Aviso: No se pudo registrar en historial D1: $e');
           }
+        }
+      } else {
+        // Usuario ya existe, limpiar cualquier referido pendiente para evitar errores
+        final prefs = await SharedPreferences.getInstance();
+        if (prefs.containsKey('pending_referral')) {
+          await prefs.remove('pending_referral');
+          debugPrint('Referido pendiente eliminado: Usuario ya existente.');
         }
       }
 

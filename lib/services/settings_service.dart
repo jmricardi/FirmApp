@@ -6,10 +6,12 @@ class SettingsService extends ChangeNotifier {
   bool _isManualCropEnabled = false;
   String _localeCode = 'es';
   ThemeMode _themeMode = ThemeMode.dark;
+  bool _hasSeenWelcome = false;
   bool get isQualityFilterEnabled => _isQualityFilterEnabled;
   bool get isManualCropEnabled => _isManualCropEnabled;
   String get localeCode => _localeCode;
   ThemeMode get themeMode => _themeMode;
+  bool get hasSeenWelcome => _hasSeenWelcome;
 
   SettingsService() {
     _loadSettings();
@@ -22,6 +24,7 @@ class SettingsService extends ChangeNotifier {
     _localeCode = prefs.getString('locale') ?? 'es';
     final themeIdx = prefs.getInt('theme_mode') ?? 2; // Default Dark
     _themeMode = ThemeMode.values[themeIdx];
+    _hasSeenWelcome = prefs.getBool('has_seen_welcome') ?? false;
     notifyListeners();
   }
 
@@ -53,5 +56,11 @@ class SettingsService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setWelcomeSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    _hasSeenWelcome = true;
+    await prefs.setBool('has_seen_welcome', true);
+    notifyListeners();
+  }
 
 }

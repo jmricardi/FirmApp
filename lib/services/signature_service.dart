@@ -7,15 +7,16 @@ import 'package:flutter/foundation.dart';
 class SignatureService {
   
   // Proceso 1A: Transparencia Base (Holograma Real)
-  Future<String?> processSignaturePhoto(String path) async {
+  Future<String?> processSignaturePhoto(String path, {bool isFromCamera = true}) async {
     final directory = await getApplicationDocumentsDirectory();
     final scansDir = Directory('${directory.path}/scans');
     if (!await scansDir.exists()) await scansDir.create(recursive: true);
-    final outPath = '${scansDir.path}/Firma_Base_${DateTime.now().millisecondsSinceEpoch}.png';
+    final outPath = '${scansDir.path}/TEMP_FRM_Base_${DateTime.now().millisecondsSinceEpoch}.png';
 
     return await compute(_extractBaseSignature, {
       'input': path,
       'output': outPath,
+      'isFromCamera': isFromCamera,
     });
   }
 
@@ -24,7 +25,7 @@ class SignatureService {
     final directory = await getApplicationDocumentsDirectory();
     final scansDir = Directory('${directory.path}/scans');
     if (!await scansDir.exists()) await scansDir.create(recursive: true);
-    final outPath = '${scansDir.path}/Firma_Mejorada_${DateTime.now().millisecondsSinceEpoch}.png';
+    final outPath = '${scansDir.path}/TEMP_FRM_Mejorada_${DateTime.now().millisecondsSinceEpoch}.png';
 
     return await compute(_applyLocalImprovement, {
       'input': path,
@@ -32,17 +33,22 @@ class SignatureService {
     });
   }
 
-  static Future<String?> _extractBaseSignature(Map<String, String> paths) async {
-    final inputPath = paths['input']!;
-    final outputPath = paths['output']!;
-    
+  static Future<String?> _extractBaseSignature(Map<String, dynamic> params) async {
+    final inputPath = params['input']!;
+    final outputPath = params['output']!;
+    final isFromCamera = params['isFromCamera'] ?? true;
+ 
     final bytes = File(inputPath).readAsBytesSync();
     final image = img.decodeImage(bytes);
     if (image == null) return null;
-
-    // Fluidize the stroke: apply a subtle blur to smooth out camera noise/pixelation
-    img.gaussianBlur(image, radius: 1);
-
+ 
+    // TRATAMIENTO DIFERENCIADO:
+    // Solo aplicamos suavizado si viene de la cámara para limpiar el ruido del sensor.
+    // Si es importado, mantenemos la nitidez original del archivo.
+    if (isFromCamera) {
+      img.gaussianBlur(image, radius: 1);
+    }
+ 
     final rgbaImage = image.convert(numChannels: 4);
 
     for (var pixel in rgbaImage) {
@@ -100,7 +106,7 @@ class SignatureService {
     final scansDir = Directory('${directory.path}/scans');
     if (!await scansDir.exists()) await scansDir.create(recursive: true);
 
-    final path = '${scansDir.path}/Firma_Digital_${DateTime.now().millisecondsSinceEpoch}.png';
+    final path = '${scansDir.path}/TEMP_FRM_Digital_${DateTime.now().millisecondsSinceEpoch}.png';
     await File(path).writeAsBytes(bytes);
     return path;
   }
@@ -111,7 +117,7 @@ class SignatureService {
       final scansDir = Directory('${directory.path}/scans');
       if (!scansDir.existsSync()) scansDir.createSync();
       
-      final fileName = 'Firma_${DateTime.now().millisecondsSinceEpoch}.png';
+      final fileName = 'FRM_${DateTime.now().millisecondsSinceEpoch}_${tempPath.hashCode.abs()}.png';
       final finalPath = '${scansDir.path}/$fileName';
       
       final file = File(tempPath);
@@ -129,11 +135,28 @@ class SignatureService {
     try {
       return scansDir.listSync()
           .whereType<File>()
-          .where((f) => f.path.contains('Firma_'))
+          .where((f) => f.path.contains('FRM_'))
           .toList()
         ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
     } catch (e) {
       return [];
+    }
+  }
+
+  Future<void> cleanupTemporaries() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final scansDir = Directory('${directory.path}/scans');
+      if (await scansDir.exists()) {
+        final files = scansDir.listSync();
+        for (var file in files) {
+          if (file is File && file.path.contains('TEMP_FRM_')) {
+            await file.delete();
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error cleaning up: $e");
     }
   }
 }

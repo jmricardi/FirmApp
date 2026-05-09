@@ -1,6 +1,6 @@
 {
-    "name": "antigravity_scanner",
-    "short_name": "antigravity_scanner",
+    "name": "FirmApp",
+    "short_name": "FirmApp",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -82,18 +82,18 @@ class SettingsScreen extends StatelessWidget {
 
 
 
-          _buildSectionTitle("Acerca de FirmaFacil"),
+          _buildSectionTitle("Acerca de FirmApp"),
           ListTile(
             leading: const Icon(Icons.description_outlined),
             title: Text(LocalizationService.translate('terms', lang)),
             subtitle: const Text('Condiciones de uso del servicio', style: TextStyle(fontSize: 12)),
-            onTap: () => _launchURL('https://arandulabs.dev/FirmaFacil/terms.html'),
+            onTap: () => _launchURL('https://arandulabs.dev/FirmApp/terms.html'),
           ),
           ListTile(
             leading: const Icon(Icons.privacy_tip_outlined),
             title: const Text('Políticas de Privacidad'),
             subtitle: const Text('Cómo protegemos tus datos', style: TextStyle(fontSize: 12)),
-            onTap: () => _launchURL('https://arandulabs.dev/FirmaFacil/privacy.html'),
+            onTap: () => _launchURL('https://arandulabs.dev/FirmApp/privacy.html'),
           ),
           ListTile(
             leading: const Icon(Icons.code_rounded, color: Colors.blueAccent),

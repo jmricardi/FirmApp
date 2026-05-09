@@ -7,7 +7,6 @@ import '../services/scanner_service.dart';
 import '../services/localization_service.dart';
 import '../services/settings_service.dart';
 import '../services/credit_service.dart';
-import 'package:provider/provider.dart';
 import 'dart:io';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
@@ -33,6 +32,7 @@ class _SignatureScreenState extends State<SignatureScreen> {
   final _sigService = SignatureService();
   final _scanner = ScannerService();
   bool _isProcessing = false;
+  int _rotationTurns = 0;
 
   Future<void> _saveCanvas() async {
     if (_controller.isEmpty) return;
@@ -108,7 +108,11 @@ class _SignatureScreenState extends State<SignatureScreen> {
           }
 
           final croppedImage = img.copyCrop(rawImage, x: minX, y: minY, width: cropW, height: cropH);
-          final croppedBytes = img.encodePng(croppedImage);
+          img.Image finalImage = croppedImage;
+          if (_rotationTurns % 4 != 0) {
+            finalImage = img.copyRotate(croppedImage, angle: _rotationTurns * 90);
+          }
+          final croppedBytes = img.encodePng(finalImage);
           
 
           await _scanner.saveCanvasSignature(croppedBytes);
@@ -147,7 +151,7 @@ class _SignatureScreenState extends State<SignatureScreen> {
           );
 
           final pathToProcess = cropped?.path ?? paths[0];
-          final resultPath = await _sigService.processSignaturePhoto(pathToProcess);
+          final resultPath = await _sigService.processSignaturePhoto(pathToProcess, isFromCamera: true);
           
           if (resultPath != null && mounted) {
             final selectedPaths = await Navigator.push<List<String>>(
@@ -168,6 +172,7 @@ class _SignatureScreenState extends State<SignatureScreen> {
                 for (var path in selectedPaths) {
                   await _sigService.finalizeSignature(path);
                 }
+                await _sigService.cleanupTemporaries();
                 Navigator.pop(context, true);
               }
             }
@@ -224,7 +229,7 @@ class _SignatureScreenState extends State<SignatureScreen> {
           );
 
           final pathToProcess = cropped?.path ?? pickedFile.path;
-          final resultPath = await _sigService.processSignaturePhoto(pathToProcess);
+          final resultPath = await _sigService.processSignaturePhoto(pathToProcess, isFromCamera: false);
           
           if (resultPath != null && mounted) {
             final selectedPaths = await Navigator.push<List<String>>(
@@ -245,6 +250,7 @@ class _SignatureScreenState extends State<SignatureScreen> {
                 for (var path in selectedPaths) {
                   await _sigService.finalizeSignature(path);
                 }
+                await _sigService.cleanupTemporaries();
                 Navigator.pop(context, true);
               }
             }
@@ -287,9 +293,12 @@ class _SignatureScreenState extends State<SignatureScreen> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: Signature(
-                      controller: _controller,
-                      backgroundColor: Colors.white,
+                    child: RotatedBox(
+                      quarterTurns: _rotationTurns,
+                      child: Signature(
+                        controller: _controller,
+                        backgroundColor: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -298,11 +307,20 @@ class _SignatureScreenState extends State<SignatureScreen> {
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   children: [
+                    IconButton(
+                      onPressed: () => setState(() => _rotationTurns = (_rotationTurns + 1) % 4),
+                      icon: const Icon(Icons.rotate_right, color: Colors.deepPurpleAccent),
+                      tooltip: 'Rotar 90°',
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => _controller.clear(),
+                        onPressed: () {
+                          _controller.clear();
+                          setState(() => _rotationTurns = 0);
+                        },
                         icon: const Icon(Icons.clear),
-                        label: Text(LocalizationService.translate('sig_clear', lang)),
+                        label: FittedBox(child: Text(LocalizationService.translate('sig_clear', lang))),
                         style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
                       ),
                     ),
@@ -311,7 +329,7 @@ class _SignatureScreenState extends State<SignatureScreen> {
                       child: ElevatedButton.icon(
                         onPressed: _saveCanvas,
                         icon: const Icon(Icons.check),
-                        label: Text(LocalizationService.translate('sig_save', lang)),
+                        label: FittedBox(child: Text(LocalizationService.translate('sig_save', lang))),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade800),
                       ),
                     ),

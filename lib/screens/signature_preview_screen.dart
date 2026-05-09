@@ -21,11 +21,30 @@ class _SignaturePreviewScreenState extends State<SignaturePreviewScreen> {
   int _viewingVersion = 0;
   final Set<int> _selectedToSave = {0}; // Por defecto base seleccionada
   bool _isProcessing = false;
+  bool _hasInternet = false;
 
   @override
   void initState() {
     super.initState();
     _versions[0] = widget.imagePath;
+    _checkConnectivity();
+  }
+
+  Future<void> _checkConnectivity() async {
+    try {
+      final result = await InternetAddress.lookup('google.com').timeout(const Duration(seconds: 3));
+      if (mounted) {
+        setState(() {
+          _hasInternet = result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _hasInternet = false;
+        });
+      }
+    }
   }
 
   Future<void> _refineLocally() async {
@@ -56,7 +75,8 @@ class _SignaturePreviewScreenState extends State<SignaturePreviewScreen> {
 
       if (response.statusCode == 200) {
         final directory = await getApplicationDocumentsDirectory();
-        final newPath = '${directory.path}/Firma_IA_${DateTime.now().millisecondsSinceEpoch}.png';
+        final scansDir = Directory('${directory.path}/scans');
+        final newPath = '${scansDir.path}/TEMP_FRM_IA_${DateTime.now().millisecondsSinceEpoch}.png';
         await File(newPath).writeAsBytes(response.bodyBytes);
         await credits.fetchCredits();
         setState(() {
@@ -112,27 +132,41 @@ class _SignaturePreviewScreenState extends State<SignaturePreviewScreen> {
                   ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(color: Color(0xFF1A1A1A), borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!_versions.containsKey(1)) _refineBtn('Mejorar Nitidez', 'Filtro local gratuito', Icons.auto_awesome, _refineLocally, Colors.greenAccent),
-                if (!_versions.containsKey(2)) _refineBtn('IA Worker (GRATIS)', 'Proceso en la nube incluido', Icons.cloud, _refineWithAI, Colors.blueAccent),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _selectedToSave.isEmpty ? null : () {
-                      final paths = _selectedToSave.map((idx) => _versions[idx]!).toList();
-                      Navigator.pop(context, paths);
-                    }, 
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
-                    child: Text('GUARDAR SELECCIONADAS (${_selectedToSave.length})', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+          SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+              decoration: const BoxDecoration(color: Color(0xFF1A1A1A), borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!_versions.containsKey(1)) _refineBtn('Mejorar Nitidez', 'Filtro local para un trazo con apariencia tinta fresca', Icons.auto_awesome, _refineLocally, Colors.greenAccent),
+                  if (!_versions.containsKey(2)) _refineBtn(
+                    _hasInternet ? 'Proceso en la nube' : 'Proceso en la nube (No disponible)', 
+                    'Reconstrucción inteligente para un acabado digital perfecto. (Requiere Internet)', 
+                    Icons.cloud, 
+                    _hasInternet ? _refineWithAI : null, 
+                    _hasInternet ? Colors.blueAccent : Colors.grey.shade700
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _selectedToSave.isEmpty ? null : () {
+                        final paths = _selectedToSave.map((idx) => _versions[idx]!).toList();
+                        Navigator.pop(context, paths);
+                      }, 
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+                      child: FittedBox(
+                        child: Text(
+                          'GUARDAR SELECCIONADAS (${_selectedToSave.length})', 
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)
+                        )
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -170,16 +204,16 @@ class _SignaturePreviewScreenState extends State<SignaturePreviewScreen> {
     );
   }
 
-  Widget _refineBtn(String title, String sub, IconData icon, VoidCallback tap, Color color) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+  Widget _refineBtn(String title, String subtitle, IconData icon, VoidCallback? onTap, Color color) {
+    final isEnabled = onTap != null;
+    return Card(
+      color: isEnabled ? Colors.grey.shade900 : Colors.grey.shade900.withOpacity(0.5),
       child: ListTile(
-        onTap: tap,
-        leading: Icon(icon, color: color),
-        title: Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)),
-        subtitle: Text(sub, style: const TextStyle(color: Colors.grey, fontSize: 11)),
-        tileColor: color.withOpacity(0.05),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: color.withOpacity(0.3))),
+        leading: Icon(icon, color: isEnabled ? color : Colors.grey),
+        title: Text(title, style: TextStyle(color: isEnabled ? Colors.white : Colors.grey, fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle, style: TextStyle(color: isEnabled ? Colors.white70 : Colors.grey.shade600, fontSize: 11)),
+        onTap: onTap,
+        enabled: isEnabled,
       ),
     );
   }

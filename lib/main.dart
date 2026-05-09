@@ -15,8 +15,6 @@ import 'services/remote_config_service.dart';
 import 'core/theme.dart';
 import 'package:app_links/app_links.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:play_install_referrer/play_install_referrer.dart';
-import 'dart:io';
 
 import 'package:pdfrx/pdfrx.dart';
 
@@ -42,10 +40,6 @@ void main() async {
     }
   });
 
-  // Chequear Referrer de Instalación (Google Play)
-  if (Platform.isAndroid) {
-    _checkInstallReferrer();
-  }
 
   runApp(
     MultiProvider(
@@ -58,20 +52,20 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AdService()),
         ChangeNotifierProvider(create: (_) => SettingsService()),
       ],
-      child: const FirmaFacilApp(),
+      child: const MyApp(),
     ),
   );
 }
 
-class FirmaFacilApp extends StatelessWidget {
-  const FirmaFacilApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Consumer<SettingsService>(
       builder: (context, settings, _) {
         return MaterialApp(
-          title: 'FirmaFacil',
+          title: 'FirmApp',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
@@ -92,25 +86,5 @@ class FirmaFacilApp extends StatelessWidget {
         );
       },
     );
-  }
-}
-
-Future<void> _checkInstallReferrer() async {
-  try {
-    var details = await PlayInstallReferrer.installReferrer;
-    if (details.installReferrer != null) {
-      final String? referrer = details.installReferrer;
-      if (referrer != null && referrer.contains('ref=')) {
-        final String refCode = referrer.split('ref=')[1].split('&')[0];
-        final prefs = await SharedPreferences.getInstance();
-        
-        if (!prefs.containsKey('pending_referral')) {
-          await prefs.setString('pending_referral', refCode);
-          debugPrint('Código de referido (Google Play) capturado: $refCode');
-        }
-      }
-    }
-  } catch (e) {
-    debugPrint('Error leyendo Install Referrer: $e');
   }
 }

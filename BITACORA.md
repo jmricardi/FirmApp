@@ -1,6 +1,67 @@
-# Bitácora de Problemas y Soluciones - FirmaFacil
+# Bitácora de Problemas y Soluciones - FirmApp (ex-FirmaFacil / EasyScan)
 
-Este documento registra los problemas técnicos encontrados durante el desarrollo de FirmaFacil (ex-EasyScan) y las soluciones aplicadas para mantener la trazabilidad del proyecto.
+Este documento registra los problemas técnicos encontrados durante el desarrollo de FirmApp y las soluciones aplicadas para mantener la trazabilidad del proyecto.
+
+---
+
+## 2026-05-09 — v1.4: Resolución Definitiva del Desplazamiento de Firma
+
+### Problema
+La firma digital se incrustaba **desplazada verticalmente hacia arriba** en el PDF exportado. El error era **proporcional a la posición Y** (mayor desplazamiento cuanto más abajo se colocaba la firma). El eje X funcionaba correctamente.
+
+- **Ratio de error medido**: ~1.15x constante (firma en Y=650 → telemetría capturaba Y=562)
+- **Patrón**: Lineal, NO aditivo. En Y=0 el error era 0, en Y=650 el error era ~87pt.
+
+### Causa Raíz
+El sistema tenía **3 fuentes de verdad geométrica distintas e inconsistentes** para mapear coordenadas:
+
+1. `displayScale = sheetWidth / pdfWidth` — usado para posicionar en X
+2. `sheetHeight / pdfHeight` — usado para posicionar en Y 
+3. `box.size.height` (RenderBox real) — usado para capturar coordenadas del toque
+
+Cuando la captura usaba `box.size` pero el render usaba `displayScale` o `sheetHeight`, cualquier diferencia de redondeo o layout entre estas tres fuentes producía un escalado vertical incorrecto.
+
+Adicionalmente, el `InteractiveViewer` sin `constrained: false` podía alterar el tamaño del layout interno sin que `box.size` coincidiera con lo visible.
+
+### Iteraciones de Debug (5 intentos)
+
+| # | Enfoque | Resultado |
+|---|---|---|
+| 1 | Ajuste de rasterización en exportación | Fallido — el error era de captura, no de dibujo |
+| 2 | Exportación vectorial (`pw.Stack` + `pw.Positioned`) | Confirmó que el PDF exportaba correctamente lo capturado, pero lo capturado estaba mal |
+| 3 | Eliminación del zoom inicial 1.15x | Fallido — el ratio ~1.15 persistió (no era el zoom) |
+| 4 | `RenderBox.globalToLocal()` para posiciones absolutas | Mejoró estabilidad pero mantuvo el error porque seguía dividiendo por `displayScale` único |
+| 5 | **Fuente única de verdad geométrica** | ✅ RESUELTO |
+
+### Solución Final (Iteración 5)
+
+**Archivo**: `lib/screens/pdf_signature_screen.dart`
+
+1. **Eliminación de `displayScale`** — ya no existe una sola escala para ambos ejes
+2. **Escalas independientes calculadas una sola vez**:
+   ```dart
+   final double scaleX = sheetWidth / _pdfPageSize!.width;
+   final double scaleY = sheetHeight / _pdfPageSize!.height;
+   ```
+3. **Misma escala usada en TODOS los pipelines**:
+   - Posicionamiento visual de firma activa: `left: pos.dx * scaleX, top: pos.dy * scaleY`
+   - Captura de arrastre: `pdfX = sigCorner.dx / scaleX`, `pdfY = sigCorner.dy / scaleY`
+   - Renderizado de stamps confirmados: `_buildStamp(stamp, scaleX, scaleY)`
+   - Tamaño del widget de firma: `width * scaleX, height * scaleY`
+4. **`constrained: false`** agregado al `InteractiveViewer`
+5. **Clamp de coordenadas**: `pdfY.clamp(0, pdfHeight - sigHeight)` para prevenir valores fuera de rango
+6. **`globalToLocal()`** sobre el Container con `GlobalKey` para captura de toque precisa
+
+### Cómo Reproducir el Bug (si reaparece)
+1. Cargar un PDF con grilla de coordenadas (marcas cada 50pt)
+2. Arrastrar la firma a una posición conocida (ej. Y=650 en la grilla)
+3. Verificar la telemetría (panel verde): si `PDF Y` ≠ 650, hay desacoplamiento de escalas
+4. Comparar `scaleX` vs `scaleY` en los logs — si difieren, ese es el bug
+
+### Otros cambios en v1.4
+- **Renombrado**: App renombrada de "FirmaFacil" a "FirmApp" en AndroidManifest, iOS Info.plist, web manifest
+- **Eliminación de `play_install_referrer`**: Removido de dependencias (causaba crash al inicio)
+
 
 ---
 

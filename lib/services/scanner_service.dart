@@ -102,7 +102,7 @@ class ScannerService {
     final targetDir = Directory('${directory.path}/$subDir');
     if (!await targetDir.exists()) await targetDir.create(recursive: true);
     
-    final fileName = 'FirmaFacil_${DateTime.now().millisecondsSinceEpoch}_${tempPath.split('/').last}';
+    final fileName = 'TEMP_${DateTime.now().millisecondsSinceEpoch}_${tempPath.split('/').last}';
     final newPath = '${targetDir.path}/$fileName';
     
     await File(tempPath).copy(newPath);
@@ -163,7 +163,7 @@ class ScannerService {
     if (oldFileName.startsWith('A4_')) prefix = "A4_";
     else if (oldFileName.startsWith('LTR_')) prefix = "LTR_";
     else if (oldFileName.startsWith('LGL_')) prefix = "LGL_";
-    else if (oldFileName.startsWith('Firma_')) prefix = "Firma_";
+    else if (oldFileName.startsWith('FRM_')) prefix = "FRM_";
 
     final file = File(path);
     final extension = path.split('.').last;
@@ -263,7 +263,7 @@ class ScannerService {
   }
 
   Future<void> shareFile(String path) async {
-    await Share.shareXFiles([XFile(path)], text: 'Enviado desde FirmaFacil');
+    await Share.shareXFiles([XFile(path)], text: 'Enviado desde FirmApp');
   }
 
   Future<String> saveCanvasSignature(Uint8List bytes) async {
@@ -271,7 +271,7 @@ class ScannerService {
     final scansDir = Directory('${directory.path}/scans');
     if (!await scansDir.exists()) await scansDir.create(recursive: true);
     
-    final fileName = 'Firma_${DateTime.now().millisecondsSinceEpoch}.png';
+    final fileName = 'FRM_${DateTime.now().millisecondsSinceEpoch}.png';
     final file = File("${scansDir.path}/$fileName");
     await file.writeAsBytes(bytes);
 

@@ -79,7 +79,7 @@ class AdService with ChangeNotifier {
     if (_isAdLoaded || (_isConnecting && !useTestId)) return;
     
     _isConnecting = true;
-    _lastError = useTestId ? 'Cargando prueba...' : 'Cargando real FirmaFacil...';
+    _lastError = useTestId ? 'Cargando prueba...' : 'Cargando real FirmApp...';
     notifyListeners();
 
     _loadTimer?.cancel();
@@ -112,7 +112,7 @@ class AdService with ChangeNotifier {
           _rewardedAd = null;
           
           if (!useTestId) {
-            _lastError = 'FirmaFacil falló (${error.code})...';
+            _lastError = 'FirmApp falló (${error.code})...';
             notifyListeners();
             Future.delayed(const Duration(seconds: 1), () => loadRewardedAd(useTestId: true));
           } else {

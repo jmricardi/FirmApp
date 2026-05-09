@@ -68,11 +68,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       setState(() {
         _scannedDocs = docs.where((f) {
           final name = f.path.split(Platform.pathSeparator).last;
-          return !name.startsWith('Firma_');
+          return !name.startsWith('FRM_');
         }).toList();
         _savedSignatures = docs.where((f) {
           final name = f.path.split(Platform.pathSeparator).last;
-          return name.startsWith('Firma_');
+          return name.startsWith('FRM_');
         }).toList();
       });
     }
@@ -83,12 +83,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     if (user == null) return;
 
     final String inviteMsg = 
-      "¡Hola! Te recomiendo FirmaFacil para escanear y firmar documentos PDF desde tu celular. "
+      "¡Hola! Te recomiendo FirmApp para escanear y firmar documentos PDF desde tu celular. "
       "Es súper rápida y profesional. Descárgala aquí: "
       "https://firmafacil.page.link/invite?ref=${user.uid}\n\n"
       "¡Si te registras con este link, ambos recibiremos 5 creditos de beneficios!";
 
-    await Share.share(inviteMsg, subject: 'Te recomiendo FirmaFacil');
+    await Share.share(inviteMsg, subject: 'Te recomiendo FirmApp');
   }
 
   Future<int> _getPageCount(File file) async {
@@ -623,7 +623,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             barrierDismissible: false,
             builder: (dialogContext) => AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: Text("¡Bienvenido a FirmaFacil!", style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+              title: Text("¡Bienvenido a FirmApp!", style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
               content: const Text("Gracias por elegirnos para gestionar tus documentos. Te hemos regalado 5 créditos iniciales para que pruebes todas nuestras funciones.\n\n¡Esperamos que te sea de gran utilidad!"),
               actions: [
                 Center(
@@ -665,7 +665,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             Image.asset('assets/icono.png', height: 32),
             const SizedBox(width: 10),
             Text(
-              'FirmaFacil',
+              'FirmApp',
               style: GoogleFonts.outfit(
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
@@ -753,16 +753,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             child: Container(
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: adService.isAdLoaded ? Colors.green.withOpacity(0.1) : Colors.white.withOpacity(0.05),
+                                color: adService.isAdLoaded ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.08),
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: adService.isAdLoaded ? Colors.green.withOpacity(0.2) : Colors.white10),
+                                border: Border.all(color: adService.isAdLoaded ? Colors.green.withOpacity(0.4) : Colors.grey.withOpacity(0.2)),
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
                                     adService.isAdLoaded ? Icons.play_circle_fill : Icons.play_circle_outline, 
-                                    color: adService.isAdLoaded ? Colors.green : Colors.grey.withOpacity(0.5),
+                                    color: adService.isAdLoaded ? Colors.green : Colors.grey.withOpacity(0.4),
                                     size: 20,
                                   ),
                                   const SizedBox(width: 4),
@@ -771,7 +771,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                     style: GoogleFonts.outfit(
                                       fontSize: 14, 
                                       fontWeight: FontWeight.bold,
-                                      color: adService.isAdLoaded ? Colors.green : Colors.grey.withOpacity(0.5)
+                                      color: adService.isAdLoaded ? Colors.green : Colors.grey.withOpacity(0.4)
                                     )
                                   ),
                                 ],
@@ -851,6 +851,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   _HelpBalloon(
                     message: "Alterna entre tus documentos PDF y tus firmas guardadas.",
                     isEnabled: _isHelpModeEnabled,
+                    balloonAlignment: Alignment.topLeft,
                     child: TabBar(
                       controller: _tabController,
                       tabs: [Tab(text: LocalizationService.translate('my_docs', lang)), Tab(text: LocalizationService.translate('signature', lang))], 
@@ -897,7 +898,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         if (file.path.contains('A4_')) label = 'A4';
         else if (file.path.contains('LTR_')) label = 'CARTA';
         else if (file.path.contains('LGL_')) label = 'OFICIO';
-        else if (file.path.contains('Firma_')) label = 'FIRMA';
+        else if (file.path.contains('FRM_') || file.path.contains('Firma_')) label = 'FIRMA';
 
         return _HelpBalloon(
           message: mode == GridMode.signature ? "Toca para gestionar esta firma guardada." : "Toca para seleccionar, mantén presionado para visualizar.",
@@ -935,7 +936,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     Padding(
                       padding: const EdgeInsets.fromLTRB(8, 0, 8, 12), 
                       child: Text(
-                        file.path.split(Platform.pathSeparator).last.replaceFirst(RegExp(r'^(A4_|LTR_|LGL_)'), ''), 
+                        file.path.split(Platform.pathSeparator).last.replaceFirst(RegExp(r'^(A4_|LTR_|LGL_|FRM_|Firma_)'), ''), 
                         maxLines: 1, 
                         overflow: TextOverflow.ellipsis, 
                         style: GoogleFonts.outfit(fontSize: 10, color: textColor)

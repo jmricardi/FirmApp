@@ -18,8 +18,48 @@ class DocumentRefineScreen extends StatefulWidget {
 class _DocumentRefineScreenState extends State<DocumentRefineScreen> {
   final TransformationController _controller = TransformationController();
   PdfPageFormat _selectedFormat = PdfPageFormat.a4;
-  double _tiltAngle = 0.0; // Inclinación en grados (-15 a 15)
+  double _tiltAngle = 0.0;
   bool _isProcessing = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    _suggestFormat();
+  }
+
+  Future<void> _suggestFormat() async {
+    try {
+      final bytes = await File(widget.imagePath).readAsBytes();
+      final image = img.decodeImage(bytes);
+      if (image == null) return;
+
+      final double imgW = image.width.toDouble();
+      final double imgH = image.height.toDouble();
+      // Usamos siempre la proporción Lado Corto / Lado Largo para evitar errores por rotación
+      final double ar = (imgW < imgH) ? (imgW / imgH) : (imgH / imgW);
+
+      final double a4AR = PdfPageFormat.a4.width / PdfPageFormat.a4.height;        // ~0.707
+      final double letterAR = PdfPageFormat.letter.width / PdfPageFormat.letter.height; // ~0.772
+      final double legalAR = PdfPageFormat.legal.width / PdfPageFormat.legal.height;   // ~0.607
+
+      final diffs = {
+        PdfPageFormat.a4: (ar - a4AR).abs(),
+        PdfPageFormat.letter: (ar - letterAR).abs(),
+        PdfPageFormat.legal: (ar - legalAR).abs(),
+      };
+
+      // Encontrar el formato con la diferencia más pequeña
+      PdfPageFormat suggested = diffs.entries.reduce((a, b) => a.value < b.value ? a : b).key;
+
+      if (mounted) {
+        setState(() {
+          _selectedFormat = suggested;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error suggesting format: $e");
+    }
+  }
 
   // Variables para mapeo de recorte
   double _screenW = 0;

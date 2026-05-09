@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/localization_service.dart';
 import '../services/settings_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -45,12 +46,22 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               children: [
                 Image.asset('assets/icono.png', height: 160),
-                const SizedBox(height: 48),
+                const SizedBox(height: 16),
+                Text(
+                  'FirmApp',
+                  style: GoogleFonts.outfit(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 24),
                 Text(
                   _isLogin 
                     ? LocalizationService.translate('login_enter', lang)
                     : LocalizationService.translate('login_register', lang),
-                  style: const TextStyle(color: Colors.grey),
+                  style: GoogleFonts.outfit(color: Colors.grey, fontSize: 14),
                 ),
                 const SizedBox(height: 48),
                 

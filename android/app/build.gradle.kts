@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.esencial.firmafacil774"
+    namespace = "dev.arandulabs.firmapp"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -18,7 +18,7 @@ android {
     // ELIMINADO: Ya no usamos el bloque kotlinOptions aquí
 
     defaultConfig {
-        applicationId = "com.esencial.firmafacil774"
+        applicationId = "dev.arandulabs.firmapp"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

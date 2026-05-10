@@ -114,7 +114,7 @@ class AuthService with ChangeNotifier {
             if (refCode != null && refCode != user.uid) {
               // Proceso de Referido (Ambos ganan)
               await http.get(
-                Uri.parse('https://easyscan-credits-worker.jmricardi-3d1.workers.dev?action=referral&uid=${user.uid}&ref=$refCode'),
+                Uri.parse('https://firmapp-credits-worker.jmricardi-3d1.workers.dev?action=referral&uid=${user.uid}&ref=$refCode'),
                 headers: {'Authorization': 'SuperEasyScan2024'},
               ).timeout(const Duration(seconds: 10));
               debugPrint('Referido procesado con éxito para ref: $refCode');
@@ -122,7 +122,7 @@ class AuthService with ChangeNotifier {
             } else {
               // Regalo de Bienvenida normal
               await http.get(
-                Uri.parse('https://easyscan-credits-worker.jmricardi-3d1.workers.dev?action=log&uid=${user.uid}&amount=5&desc=Regalo%20de%20Bienvenida'),
+                Uri.parse('https://firmapp-credits-worker.jmricardi-3d1.workers.dev?action=log&uid=${user.uid}&amount=5&desc=Regalo%20de%20Bienvenida'),
                 headers: {'Authorization': 'SuperEasyScan2024'},
               ).timeout(const Duration(seconds: 10));
               debugPrint('Historial de bienvenida registrado en D1.');

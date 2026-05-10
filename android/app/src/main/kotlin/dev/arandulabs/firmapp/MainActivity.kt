@@ -1,4 +1,4 @@
-package com.esencial.firmafacil774
+package dev.arandulabs.firmapp
 
 import io.flutter.embedding.android.FlutterActivity
 

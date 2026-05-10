@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.antigravity.scanner" "\0"
-            VALUE "FileDescription", "antigravity_scanner" "\0"
+            VALUE "CompanyName", "com.firmapp" "\0"
+            VALUE "FileDescription", "firmapp" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "antigravity_scanner" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.antigravity.scanner. All rights reserved." "\0"
-            VALUE "OriginalFilename", "antigravity_scanner.exe" "\0"
-            VALUE "ProductName", "antigravity_scanner" "\0"
+            VALUE "InternalName", "firmapp" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.firmapp. All rights reserved." "\0"
+            VALUE "OriginalFilename", "firmapp.exe" "\0"
+            VALUE "ProductName", "firmapp" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

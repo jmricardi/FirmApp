@@ -420,52 +420,52 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
                         color: Colors.white, 
                         boxShadow: [BoxShadow(color: Colors.black87, blurRadius: 25, spreadRadius: 5)]
                       ),
-                      child: Stack(clipBehavior: Clip.none, children: [
-                      if (_pageImage != null)
-                        SizedBox.expand(child: Image.memory(_pageImage!, fit: BoxFit.fill)),
-                      
-                      if (_stamps.containsKey(_currentPageIndex))
-                        ..._stamps[_currentPageIndex]!.map((s) => _buildStamp(s, scaleX, scaleY)),
-                      
-                      if (_selectedSignature != null)
-                        Positioned(
-                          left: _currentSigPosInPoints.dx * scaleX,
-                          top: _currentSigPosInPoints.dy * scaleY,
-                          child: GestureDetector(
-                            onPanStart: (details) {
-                              final RenderBox? box = _pageContainerKey.currentContext?.findRenderObject() as RenderBox?;
-                              if (box == null) return;
-                              final Offset localTouch = box.globalToLocal(details.globalPosition);
-                              final Offset sigCorner = Offset(
-                                _currentSigPosInPoints.dx * scaleX,
-                                _currentSigPosInPoints.dy * scaleY,
-                              );
-                              _dragStartGlobal = localTouch - sigCorner;
-                              debugPrint("GEOM: scaleX=$scaleX | scaleY=$scaleY | sheetSize=${sheetWidth}x$sheetHeight | pdfSize=${_pdfPageSize}");
-                            },
-                            onPanUpdate: (details) {
-                              final RenderBox? box = _pageContainerKey.currentContext?.findRenderObject() as RenderBox?;
-                              if (box == null || _dragStartGlobal == null) return;
-                              final Offset localTouch = box.globalToLocal(details.globalPosition);
-                              final Offset sigCorner = localTouch - _dragStartGlobal!;
-                              // Misma escala para captura y render
-                              final double pdfX = (sigCorner.dx / scaleX).clamp(0, _pdfPageSize!.width - _currentSigWidthInPoints);
-                              final double pdfY = (sigCorner.dy / scaleY).clamp(0, _pdfPageSize!.height - _currentSigHeightInPoints);
-                              setState(() {
-                                _currentSigPosInPoints = Offset(pdfX, pdfY);
-                              });
-                            },
-                            onPanEnd: (_) {
-                              _dragStartGlobal = null;
-                            },
-                            child: Container(
-                              width: _currentSigWidthInPoints * scaleX,
-                              height: _currentSigHeightInPoints * scaleY,
-                              decoration: BoxDecoration(border: Border.all(color: Colors.deepPurpleAccent.withValues(alpha: 0.5), width: 1)),
-                              child: ColorFiltered(colorFilter: ColorFilter.mode(_inkColor, BlendMode.srcIn), child: Image.file(_selectedSignature!, fit: BoxFit.fill)),
+                        child: Stack(clipBehavior: Clip.none, children: [
+                        if (_pageImage != null)
+                          SizedBox.expand(child: Image.memory(_pageImage!, fit: BoxFit.fill)),
+                        
+                        if (_stamps.containsKey(_currentPageIndex))
+                          ..._stamps[_currentPageIndex]!.map((s) => _buildStamp(s, scaleX, scaleY)),
+                        
+                        if (_selectedSignature != null)
+                          Positioned(
+                            left: _currentSigPosInPoints.dx * scaleX,
+                            top: _currentSigPosInPoints.dy * scaleY,
+                            child: GestureDetector(
+                              onPanStart: (details) {
+                                final RenderBox? box = _pageContainerKey.currentContext?.findRenderObject() as RenderBox?;
+                                if (box == null) return;
+                                final Offset localTouch = box.globalToLocal(details.globalPosition);
+                                final Offset sigCorner = Offset(
+                                  _currentSigPosInPoints.dx * scaleX,
+                                  _currentSigPosInPoints.dy * scaleY,
+                                );
+                                _dragStartGlobal = localTouch - sigCorner;
+                                debugPrint("DRAG_START (Sig): localTouch=$localTouch | sigCorner=$sigCorner");
+                              },
+                              onPanUpdate: (details) {
+                                if (_dragStartGlobal == null) return;
+                                final RenderBox? box = _pageContainerKey.currentContext?.findRenderObject() as RenderBox?;
+                                if (box == null) return;
+                                final Offset localTouch = box.globalToLocal(details.globalPosition);
+                                final Offset sigCorner = localTouch - _dragStartGlobal!;
+                                
+                                final double pdfX = (sigCorner.dx / scaleX).clamp(0, _pdfPageSize!.width - _currentSigWidthInPoints);
+                                final double pdfY = (sigCorner.dy / scaleY).clamp(0, _pdfPageSize!.height - _currentSigHeightInPoints);
+                                
+                                setState(() {
+                                  _currentSigPosInPoints = Offset(pdfX, pdfY);
+                                });
+                              },
+                              onPanEnd: (_) => _dragStartGlobal = null,
+                              child: Container(
+                                width: _currentSigWidthInPoints * scaleX,
+                                height: _currentSigHeightInPoints * scaleY,
+                                decoration: BoxDecoration(border: Border.all(color: Colors.deepPurpleAccent.withValues(alpha: 0.5), width: 1)),
+                                child: ColorFiltered(colorFilter: ColorFilter.mode(_inkColor, BlendMode.srcIn), child: Image.file(_selectedSignature!, fit: BoxFit.fill)),
+                              ),
                             ),
                           ),
-                        ),
 
                       // MARCADOR DE ORIGEN (0,0) REAL DEL PDF
                       Positioned(
@@ -494,12 +494,12 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
                         ),
                       ),
                     ]),
-                    ),
                   ),
                 ),
-              ],
-            );
-          })),
+              ),
+            ],
+          );
+        })),
           SafeArea(
             top: false,
             child: Container(

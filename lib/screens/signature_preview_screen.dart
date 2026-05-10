@@ -66,7 +66,7 @@ class _SignaturePreviewScreenState extends State<SignaturePreviewScreen> {
     setState(() => _isProcessing = true);
     try {
       final bytes = await File(_versions[_viewingVersion] ?? _versions[0]!).readAsBytes();
-      final url = 'https://easyscan-credits-worker.jmricardi-3d1.workers.dev?action=refine_signature&uid=${credits.uid}&amount=0';
+      final url = 'https://firmapp-credits-worker.jmricardi-3d1.workers.dev?action=refine_signature&uid=${credits.uid}&amount=0';
       final response = await http.post(
         Uri.parse(url),
         headers: {'Authorization': 'SuperEasyScan2024', 'Content-Type': 'image/png'},

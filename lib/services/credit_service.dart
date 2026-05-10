@@ -8,7 +8,7 @@ class CreditService with ChangeNotifier {
   int _credits = 0;
   bool _isLoading = false;
 
-  final String _workerUrl = 'https://easyscan-credits-worker.jmricardi-3d1.workers.dev';
+  final String _workerUrl = 'https://firmapp-credits-worker.jmricardi-3d1.workers.dev';
   final String _workerSecret = 'SuperEasyScan2024';
   List<dynamic> _history = [];
   String _localVersion = "";

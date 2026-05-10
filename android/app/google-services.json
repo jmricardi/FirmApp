@@ -1,49 +1,34 @@
 {
   "project_info": {
-    "project_number": "1061123254472",
-    "project_id": "easyscan-ee1d4",
-    "storage_bucket": "easyscan-ee1d4.firebasestorage.app"
+    "project_number": "1072301474405",
+    "project_id": "firmapp-ad67f",
+    "storage_bucket": "firmapp-ad67f.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1061123254472:android:160329721e17a6447b5dfd",
+        "mobilesdk_app_id": "1:1072301474405:android:551fd6d5eb76fd14817c8c",
         "android_client_info": {
-          "package_name": "com.esencial.firmafacil774"
+          "package_name": "dev.arandulabs.firmapp"
         }
       },
       "oauth_client": [
         {
-          "client_id": "1061123254472-evmjnu9nvca07rlaq10hhkldgupgfd71.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.esencial.firmafacil774",
-            "certificate_hash": "8bb4f63c6ff93c3ee6260c135b7a3a56c0bbf31d"
-          }
-        },
-        {
-          "client_id": "1061123254472-u3ivphrgluj7bhg54ddak2tmemsq6nag.apps.googleusercontent.com",
+          "client_id": "1072301474405-ok2dg4e2fgcvtg2be15a9o28vtco4ile.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyA1YSbalTXaU0cpHuOnUCBk4_8C-4tP_Go"
+          "current_key": "AIzaSyDuKV2Jhx5VWQV4zeGhx_w-RvbE8_LvvvA"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "1061123254472-u3ivphrgluj7bhg54ddak2tmemsq6nag.apps.googleusercontent.com",
+              "client_id": "1072301474405-ok2dg4e2fgcvtg2be15a9o28vtco4ile.apps.googleusercontent.com",
               "client_type": 3
-            },
-            {
-              "client_id": "1061123254472-fs5ncp4soaqt9oss1jh8icru7i2l2pvs.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.antigravity.scanner.antigravityScanner"
-              }
             }
           ]
         }

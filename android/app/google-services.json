@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1072301474405-e7e5c9qhc21i6lvcra6t39j8mqgdr9kp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "dev.arandulabs.firmapp",
+            "certificate_hash": "8bb4f63c6ff93c3ee6260c135b7a3a56c0bbf31d"
+          }
+        },
+        {
           "client_id": "1072301474405-ok2dg4e2fgcvtg2be15a9o28vtco4ile.apps.googleusercontent.com",
           "client_type": 3
         }

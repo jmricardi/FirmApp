@@ -100,36 +100,12 @@ class AuthService with ChangeNotifier {
         updates['createdAt'] = data?['createdAt'] ?? FieldValue.serverTimestamp();
         updates['displayName'] = initialName ?? user.displayName ?? data?['displayName'] ?? 'Usuario';
         
-        // Solo damos créditos si realmente no tiene el campo (evita duplicar en login)
+        // El regalo de bienvenida ahora se gestiona desde el UI (HomeScreen) 
+        // para asegurar la sincronización perfecta con el dashboard.
         if (data == null || !data.containsKey('credits')) {
-          updates['credits'] = 5;
+          updates['credits'] = 0; // Inicializa en 0, se sumarán al reclamar el regalo
           updates['total_spent'] = 0;
-          updates['total_earned'] = 5;
-
-          // Registro en historial externo (Worker D1)
-          try {
-            final prefs = await SharedPreferences.getInstance();
-            final String? refCode = prefs.getString('pending_referral');
-
-            if (refCode != null && refCode != user.uid) {
-              // Proceso de Referido (Ambos ganan)
-              await http.get(
-                Uri.parse('https://firmapp-credits-worker.jmricardi-3d1.workers.dev?action=referral&uid=${user.uid}&ref=$refCode'),
-                headers: {'Authorization': 'SuperEasyScan2024'},
-              ).timeout(const Duration(seconds: 10));
-              debugPrint('Referido procesado con éxito para ref: $refCode');
-              await prefs.remove('pending_referral'); // Limpiar para no duplicar
-            } else {
-              // Regalo de Bienvenida normal
-              await http.get(
-                Uri.parse('https://firmapp-credits-worker.jmricardi-3d1.workers.dev?action=log&uid=${user.uid}&amount=5&desc=Regalo%20de%20Bienvenida'),
-                headers: {'Authorization': 'SuperEasyScan2024'},
-              ).timeout(const Duration(seconds: 10));
-              debugPrint('Historial de bienvenida registrado en D1.');
-            }
-          } catch (e) {
-            debugPrint('Aviso: No se pudo registrar en historial D1: $e');
-          }
+          updates['total_earned'] = 0;
         }
       } else {
         // Usuario ya existe, limpiar cualquier referido pendiente para evitar errores

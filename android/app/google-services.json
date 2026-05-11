@@ -37,6 +37,13 @@
             {
               "client_id": "1072301474405-ok2dg4e2fgcvtg2be15a9o28vtco4ile.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "1072301474405-r7es4j7grgmpij49harunsogian3tsad.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "dev.arandulabs.firmapp"
+              }
             }
           ]
         }

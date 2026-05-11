@@ -5,7 +5,7 @@ compatibility_date = "2024-05-01"
 # Variables de entorno para seguridad e identificación
 [vars]
 WORker_SECRET = "SuperEasyScan2024"
-FIREBASE_PROJECT_ID = "easyscan-ee1d4" 
+FIREBASE_PROJECT_ID = "firmapp-ad67f" 
 
 # Activación de la Inteligencia Artificial en el Worker
 [ai]
@@ -17,5 +17,5 @@ enabled = true
 
 [[d1_databases]]
 binding = "DB"
-database_name = "easyscan-db"
-database_id = "6575736f-44e1-4918-aec2-71911d767e89"
+database_name = "firmapp-db"
+database_id = "4a8609fb-2593-4d94-8123-39404470a159"

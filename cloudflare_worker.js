@@ -131,6 +131,38 @@ export default {
           status: 200, 
           headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
         });
+      } else if (action === 'referral') {
+        const referrerUid = url.searchParams.get("ref");
+        if (!referrerUid) return new Response('Missing referrer', { status: 400 });
+
+        // 1. Dar 5 al nuevo usuario
+        currentCredits += 5;
+
+        // 2. Dar 5 al referente en Firestore (Petición externa)
+        const referrerUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${referrerUid}`;
+        const refGet = await fetch(referrerUrl);
+        if (refGet.status === 200) {
+          const refDoc = await refGet.json();
+          const refOldCredits = parseInt(refDoc.fields?.credits?.integerValue || "0");
+          const refNewCredits = refOldCredits + 5;
+
+          await fetch(`${referrerUrl}?updateMask.fieldPaths=credits`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fields: { credits: { integerValue: refNewCredits.toString() } } })
+          });
+
+          // Log para el referente
+          await env.DB.prepare(
+            "INSERT INTO movements (uid, action, amount, description) VALUES (?, ?, ?, ?)"
+          ).bind(referrerUid, 'add', 5, `Bono por invitar a usuario ${uid}`).run();
+        }
+
+        // Log para el nuevo usuario
+        await env.DB.prepare(
+          "INSERT INTO movements (uid, action, amount, description) VALUES (?, ?, ?, ?)"
+        ).bind(uid, 'add', 5, "Regalo por invitación").run();
+
       } else {
         return new Response('Invalid action', { status: 400 });
       }

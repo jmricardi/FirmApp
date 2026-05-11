@@ -41,32 +41,30 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBv_kjT8PlO1ntdHwmUij1DltAMyGjuryQ',
-    appId: '1:1061123254472:web:939cb17212b7bc1e7b5dfd',
-    messagingSenderId: '1061123254472',
-    projectId: 'easyscan-ee1d4',
-    authDomain: 'easyscan-ee1d4.firebaseapp.com',
-    storageBucket: 'easyscan-ee1d4.firebasestorage.app',
-    measurementId: 'G-5PM39VQBMF',
+    apiKey: 'AIzaSyDuKV2Jhx5VWQV4zeGhx_w-RvbE8_LvvvA', // Placeholder, needs actual web key
+    appId: '1:1072301474405:web:unknown',
+    messagingSenderId: '1072301474405',
+    projectId: 'firmapp-ad67f',
+    authDomain: 'firmapp-ad67f.firebaseapp.com',
+    storageBucket: 'firmapp-ad67f.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyA1YSbalTXaU0cpHuOnUCBk4_8C-4tP_Go',
-    appId: '1:1061123254472:android:160329721e17a6447b5dfd',
-    messagingSenderId: '1061123254472',
-    projectId: 'easyscan-ee1d4',
-    storageBucket: 'easyscan-ee1d4.firebasestorage.app',
+    apiKey: 'AIzaSyDuKV2Jhx5VWQV4zeGhx_w-RvbE8_LvvvA',
+    appId: '1:1072301474405:android:551fd6d5eb76fd14817c8c',
+    messagingSenderId: '1072301474405',
+    projectId: 'firmapp-ad67f',
+    storageBucket: 'firmapp-ad67f.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyC7_xS2n82cgZVV00-xV8rLCcP1VUdDqHI',
-    appId: '1:1061123254472:ios:e92ff89e5141c8ba7b5dfd',
-    messagingSenderId: '1061123254472',
-    projectId: 'easyscan-ee1d4',
-    storageBucket: 'easyscan-ee1d4.firebasestorage.app',
-    androidClientId: '1061123254472-943i33707qatco35tetprtjf3c8ens8m.apps.googleusercontent.com',
-    iosClientId: '1061123254472-fs5ncp4soaqt9oss1jh8icru7i2l2pvs.apps.googleusercontent.com',
-    iosBundleId: 'com.antigravity.scanner.antigravityScanner',
+    apiKey: 'AIzaSyDuKV2Jhx5VWQV4zeGhx_w-RvbE8_LvvvA', // Placeholder, needs actual iOS key
+    appId: '1:1072301474405:ios:unknown',
+    messagingSenderId: '1072301474405',
+    projectId: 'firmapp-ad67f',
+    storageBucket: 'firmapp-ad67f.firebasestorage.app',
+    iosClientId: '1072301474405-r7es4j7grgmpij49harunsogian3tsad.apps.googleusercontent.com',
+    iosBundleId: 'dev.arandulabs.firmapp',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(

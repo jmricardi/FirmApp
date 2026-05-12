@@ -47,7 +47,13 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProxyProvider<AuthService, CreditService>(
           create: (_) => CreditService(null),
-          update: (_, auth, previous) => CreditService(auth.currentUser?.uid),
+          update: (_, auth, previous) {
+            // Si el usuario es el mismo, no recrear el servicio para no perder el estado
+            if (previous != null && previous.uid == auth.currentUser?.uid) {
+              return previous;
+            }
+            return CreditService(auth.currentUser?.uid);
+          },
         ),
         ChangeNotifierProvider(create: (_) => AdService()),
         ChangeNotifierProvider(create: (_) => SettingsService()),

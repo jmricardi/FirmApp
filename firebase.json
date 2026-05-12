@@ -17,5 +17,14 @@
         }
       }
     }
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "appAssociation": "NONE"
   }
 }

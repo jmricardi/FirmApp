@@ -23,18 +23,20 @@ class SettingsScreen extends StatelessWidget {
       ),
       body: ListView(
         children: [
-          _buildSectionTitle(LocalizationService.translate('theme_title', lang)),
+          _buildSectionTitle(
+              LocalizationService.translate('theme_title', lang)),
           ListTile(
             leading: const Icon(Icons.brightness_6_outlined),
             title: Text(LocalizationService.translate('theme_dark', lang)),
             trailing: Switch(
               value: settings.themeMode == ThemeMode.dark,
-              onChanged: (val) => settings.setThemeMode(val ? ThemeMode.dark : ThemeMode.light),
-              activeColor: Colors.deepPurpleAccent,
+              onChanged: (val) =>
+                  settings.setThemeMode(val ? ThemeMode.dark : ThemeMode.light),
+              activeThumbColor: Colors.deepPurpleAccent,
             ),
           ),
-          
-          _buildSectionTitle(LocalizationService.translate('language_label', lang)),
+          _buildSectionTitle(
+              LocalizationService.translate('language_label', lang)),
           ListTile(
             leading: const Icon(Icons.language_rounded),
             title: const Text('Español'),
@@ -55,8 +57,8 @@ class SettingsScreen extends StatelessWidget {
               activeColor: Colors.deepPurpleAccent,
             ),
           ),
-
-          _buildSectionTitle(LocalizationService.translate('quality_filter', lang)),
+          _buildSectionTitle(
+              LocalizationService.translate('quality_filter', lang)),
           ListTile(
             leading: const Icon(Icons.high_quality_rounded),
             title: Text(LocalizationService.translate('quality_filter', lang)),
@@ -64,11 +66,11 @@ class SettingsScreen extends StatelessWidget {
             trailing: Switch(
               value: settings.isQualityFilterEnabled,
               onChanged: (val) => settings.toggleQualityFilter(val),
-              activeColor: Colors.deepPurpleAccent,
+              activeThumbColor: Colors.deepPurpleAccent,
             ),
           ),
-
-          _buildSectionTitle(LocalizationService.translate('manual_crop', lang)),
+          _buildSectionTitle(
+              LocalizationService.translate('manual_crop', lang)),
           ListTile(
             leading: const Icon(Icons.crop_rounded),
             title: Text(LocalizationService.translate('manual_crop', lang)),
@@ -76,29 +78,31 @@ class SettingsScreen extends StatelessWidget {
             trailing: Switch(
               value: settings.isManualCropEnabled,
               onChanged: (val) => settings.toggleManualCrop(val),
-              activeColor: Colors.deepPurpleAccent,
+              activeThumbColor: Colors.deepPurpleAccent,
             ),
           ),
-
-
-
           _buildSectionTitle("Acerca de FirmApp"),
           ListTile(
             leading: const Icon(Icons.description_outlined),
             title: Text(LocalizationService.translate('terms', lang)),
-            subtitle: const Text('Condiciones de uso del servicio', style: TextStyle(fontSize: 12)),
-            onTap: () => _launchURL('https://arandulabs.dev/FirmApp/terms.html'),
+            subtitle: const Text('Condiciones de uso del servicio',
+                style: TextStyle(fontSize: 12)),
+            onTap: () =>
+                _launchURL('https://arandulabs.dev/FirmApp/terms.html'),
           ),
           ListTile(
             leading: const Icon(Icons.privacy_tip_outlined),
             title: const Text('Políticas de Privacidad'),
-            subtitle: const Text('Cómo protegemos tus datos', style: TextStyle(fontSize: 12)),
-            onTap: () => _launchURL('https://arandulabs.dev/FirmApp/privacy.html'),
+            subtitle: const Text('Cómo protegemos tus datos',
+                style: TextStyle(fontSize: 12)),
+            onTap: () =>
+                _launchURL('https://arandulabs.dev/FirmApp/privacy.html'),
           ),
           ListTile(
             leading: const Icon(Icons.code_rounded, color: Colors.blueAccent),
             title: const Text('Desarrollado por Arandu Labs'),
-            subtitle: const Text('Visitar arandulabs.dev', style: TextStyle(fontSize: 12)),
+            subtitle: const Text('Visitar arandulabs.dev',
+                style: TextStyle(fontSize: 12)),
             onTap: () => _launchURL('https://arandulabs.dev'),
           ),
           ListTile(
@@ -106,14 +110,14 @@ class SettingsScreen extends StatelessWidget {
             title: Text(LocalizationService.translate('help', lang)),
             onTap: () => Navigator.pushNamed(context, '/faq'),
           ),
-          
           const SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: OutlinedButton.icon(
               onPressed: () => context.read<AuthService>().signOut(),
               icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
-              label: Text(LocalizationService.translate('logout', lang), style: const TextStyle(color: Colors.redAccent)),
+              label: Text(LocalizationService.translate('logout', lang),
+                  style: const TextStyle(color: Colors.redAccent)),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.redAccent),
                 padding: const EdgeInsets.symmetric(vertical: 12),

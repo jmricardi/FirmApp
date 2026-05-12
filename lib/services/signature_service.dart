@@ -1,17 +1,17 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
 
 class SignatureService {
-  
   // Proceso 1A: Transparencia Base (Holograma Real)
-  Future<String?> processSignaturePhoto(String path, {bool isFromCamera = true}) async {
+  Future<String?> processSignaturePhoto(String path,
+      {bool isFromCamera = true}) async {
     final directory = await getApplicationDocumentsDirectory();
     final scansDir = Directory('${directory.path}/scans');
     if (!await scansDir.exists()) await scansDir.create(recursive: true);
-    final outPath = '${scansDir.path}/TEMP_FRM_Base_${DateTime.now().millisecondsSinceEpoch}.png';
+    final outPath =
+        '${scansDir.path}/TEMP_FRM_Base_${DateTime.now().millisecondsSinceEpoch}.png';
 
     return await compute(_extractBaseSignature, {
       'input': path,
@@ -25,7 +25,8 @@ class SignatureService {
     final directory = await getApplicationDocumentsDirectory();
     final scansDir = Directory('${directory.path}/scans');
     if (!await scansDir.exists()) await scansDir.create(recursive: true);
-    final outPath = '${scansDir.path}/TEMP_FRM_Mejorada_${DateTime.now().millisecondsSinceEpoch}.png';
+    final outPath =
+        '${scansDir.path}/TEMP_FRM_Mejorada_${DateTime.now().millisecondsSinceEpoch}.png';
 
     return await compute(_applyLocalImprovement, {
       'input': path,
@@ -33,29 +34,30 @@ class SignatureService {
     });
   }
 
-  static Future<String?> _extractBaseSignature(Map<String, dynamic> params) async {
+  static Future<String?> _extractBaseSignature(
+      Map<String, dynamic> params) async {
     final inputPath = params['input']!;
     final outputPath = params['output']!;
     final isFromCamera = params['isFromCamera'] ?? true;
- 
+
     final bytes = File(inputPath).readAsBytesSync();
     final image = img.decodeImage(bytes);
     if (image == null) return null;
- 
+
     // TRATAMIENTO DIFERENCIADO:
     // Solo aplicamos suavizado si viene de la cámara para limpiar el ruido del sensor.
     // Si es importado, mantenemos la nitidez original del archivo.
     if (isFromCamera) {
       img.gaussianBlur(image, radius: 1);
     }
- 
+
     final rgbaImage = image.convert(numChannels: 4);
 
     for (var pixel in rgbaImage) {
       final r = pixel.r;
       final g = pixel.g;
       final b = pixel.b;
-      
+
       final luminance = (0.299 * r + 0.587 * g + 0.114 * b);
 
       // Algoritmo de Limpieza Quirúrgica:
@@ -68,7 +70,7 @@ class SignatureService {
         pixel.r = 0;
         pixel.g = 8;
         pixel.b = 20;
-        
+
         if (luminance < 100) {
           pixel.a = 255;
         } else {
@@ -82,7 +84,8 @@ class SignatureService {
     return outputPath;
   }
 
-  static Future<String?> _applyLocalImprovement(Map<String, String> paths) async {
+  static Future<String?> _applyLocalImprovement(
+      Map<String, String> paths) async {
     final inputPath = paths['input']!;
     final outputPath = paths['output']!;
 
@@ -106,7 +109,8 @@ class SignatureService {
     final scansDir = Directory('${directory.path}/scans');
     if (!await scansDir.exists()) await scansDir.create(recursive: true);
 
-    final path = '${scansDir.path}/TEMP_FRM_Digital_${DateTime.now().millisecondsSinceEpoch}.png';
+    final path =
+        '${scansDir.path}/TEMP_FRM_Digital_${DateTime.now().millisecondsSinceEpoch}.png';
     await File(path).writeAsBytes(bytes);
     return path;
   }
@@ -116,10 +120,11 @@ class SignatureService {
       final directory = await getApplicationDocumentsDirectory();
       final scansDir = Directory('${directory.path}/scans');
       if (!scansDir.existsSync()) scansDir.createSync();
-      
-      final fileName = 'FRM_${DateTime.now().millisecondsSinceEpoch}_${tempPath.hashCode.abs()}.png';
+
+      final fileName =
+          'FRM_${DateTime.now().millisecondsSinceEpoch}_${tempPath.hashCode.abs()}.png';
       final finalPath = '${scansDir.path}/$fileName';
-      
+
       final file = File(tempPath);
       await file.copy(finalPath);
     } catch (e) {
@@ -131,9 +136,10 @@ class SignatureService {
     final directory = await getApplicationDocumentsDirectory();
     final scansDir = Directory('${directory.path}/scans');
     if (!await scansDir.exists()) return [];
-    
+
     try {
-      return scansDir.listSync()
+      return scansDir
+          .listSync()
           .whereType<File>()
           .where((f) => f.path.contains('FRM_'))
           .toList()

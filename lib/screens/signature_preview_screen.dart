@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../services/signature_service.dart';
 import '../services/credit_service.dart';
 import '../services/localization_service.dart';
@@ -22,6 +24,7 @@ class _SignaturePreviewScreenState extends State<SignaturePreviewScreen> {
   final Set<int> _selectedToSave = {0}; // Por defecto base seleccionada
   bool _isProcessing = false;
   bool _hasInternet = false;
+  final _uuid = const Uuid();
 
   @override
   void initState() {
@@ -63,27 +66,45 @@ class _SignaturePreviewScreenState extends State<SignaturePreviewScreen> {
 
   Future<void> _refineWithAI() async {
     final credits = Provider.of<CreditService>(context, listen: false);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
     setState(() => _isProcessing = true);
     try {
+      final token = await user.getIdToken();
+      final idempotencyKey = _uuid.v4();
       final bytes = await File(_versions[_viewingVersion] ?? _versions[0]!).readAsBytes();
-      final url = 'https://firmapp-credits-worker.jmricardi-3d1.workers.dev?action=refine_signature&uid=${credits.uid}&amount=0';
+      
+      const url = 'https://firmapp-credits-worker.jmricardi-3d1.workers.dev?action=refine_signature';
+      
       final response = await http.post(
         Uri.parse(url),
-        headers: {'Authorization': 'SuperEasyScan2024', 'Content-Type': 'image/png'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'image/png',
+          'X-Idempotency-Key': idempotencyKey,
+        },
         body: bytes,
-      ).timeout(const Duration(seconds: 20));
+      ).timeout(const Duration(seconds: 25));
 
       if (response.statusCode == 200) {
         final directory = await getApplicationDocumentsDirectory();
         final scansDir = Directory('${directory.path}/scans');
         final newPath = '${scansDir.path}/TEMP_FRM_IA_${DateTime.now().millisecondsSinceEpoch}.png';
         await File(newPath).writeAsBytes(response.bodyBytes);
+        
+        // Actualizar créditos después de que el Worker los dedujo
         await credits.fetchCredits();
+        
         setState(() {
           _versions[2] = newPath;
           _viewingVersion = 2;
           _selectedToSave.add(2);
         });
+      } else {
+        String errorMsg = 'Error al procesar';
+        if (response.statusCode == 403) errorMsg = 'Créditos insuficientes';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg)));
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));

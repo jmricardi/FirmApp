@@ -14,38 +14,39 @@ import 'package:pdfrx/pdfrx.dart' as render;
 import 'dart:ui' as ui;
 
 class ScannerService {
-
-
   // Ahora permitimos hasta 20 hojas por sesión
   final _documentScanner = DocumentScanner(
     options: DocumentScannerOptions(
       documentFormats: {DocumentFormat.jpeg},
       mode: ScannerMode.full,
       isGalleryImport: true, // Corregido: Nombre correcto para v0.4.1
-      pageLimit: 20, 
+      pageLimit: 20,
     ),
   );
-  
+
   final _textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
-  
+
   // Devuelve una lista de rutas de imágenes capturadas
-  Future<List<String>?> captureDocuments({bool checkQuality = false, bool isSignature = false}) async {
+  Future<List<String>?> captureDocuments(
+      {bool checkQuality = false, bool isSignature = false}) async {
     try {
       final result = await _documentScanner.scanDocument();
       final images = result.images;
       if (images == null || images.isEmpty) return null;
-      
+
       List<String> persistentPaths = [];
       for (var tempPath in images) {
         if (checkQuality) {
-          final isGood = await checkImageQuality(tempPath, isSignature: isSignature);
+          final isGood =
+              await checkImageQuality(tempPath, isSignature: isSignature);
           if (!isGood) {
             throw Exception("QUALITY_INSUFFICIENT");
           }
         }
 
         // Guardamos en carpeta temporal primero
-        final path = await _moveToPersistentStorage(tempPath, isTemporary: true);
+        final path =
+            await _moveToPersistentStorage(tempPath, isTemporary: true);
         persistentPaths.add(path);
       }
       return persistentPaths;
@@ -57,12 +58,14 @@ class ScannerService {
   }
 
   // Método para validar si la imagen es legible o tiene contenido (firma)
-  Future<bool> checkImageQuality(String imagePath, {bool isSignature = false}) async {
+  Future<bool> checkImageQuality(String imagePath,
+      {bool isSignature = false}) async {
     try {
       if (!isSignature) {
         // MODO DOCUMENTO: Seguimos usando OCR para asegurar legibilidad
         final inputImage = InputImage.fromFilePath(imagePath);
-        final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
+        final RecognizedText recognizedText =
+            await _textRecognizer.processImage(inputImage);
         return recognizedText.text.trim().length > 3;
       } else {
         // MODO FIRMA: Analizamos densidad de píxeles (contraste) en lugar de caracteres
@@ -87,7 +90,8 @@ class ScannerService {
 
         // Si hay al menos un 0.5% de densidad de "tinta" en el muestreo, la firma es válida
         final density = inkPixels / totalSampled;
-        debugPrint('Densidad de firma detectada: ${density.toStringAsFixed(4)}');
+        debugPrint(
+            'Densidad de firma detectada: ${density.toStringAsFixed(4)}');
         return density > 0.005;
       }
     } catch (e) {
@@ -96,15 +100,17 @@ class ScannerService {
     }
   }
 
-  Future<String> _moveToPersistentStorage(String tempPath, {bool isTemporary = false}) async {
+  Future<String> _moveToPersistentStorage(String tempPath,
+      {bool isTemporary = false}) async {
     final directory = await getApplicationDocumentsDirectory();
     final subDir = isTemporary ? 'temp_scans' : 'scans';
     final targetDir = Directory('${directory.path}/$subDir');
     if (!await targetDir.exists()) await targetDir.create(recursive: true);
-    
-    final fileName = 'TEMP_${DateTime.now().millisecondsSinceEpoch}_${tempPath.split('/').last}';
+
+    final fileName =
+        'TEMP_${DateTime.now().millisecondsSinceEpoch}_${tempPath.split('/').last}';
     final newPath = '${targetDir.path}/$fileName';
-    
+
     await File(tempPath).copy(newPath);
     return newPath;
   }
@@ -117,7 +123,8 @@ class ScannerService {
     for (var path in tempPaths) {
       final file = File(path);
       if (await file.exists()) {
-        final fileName = 'A4_IMG_${DateTime.now().millisecondsSinceEpoch}_${path.split('/').last}';
+        final fileName =
+            'A4_IMG_${DateTime.now().millisecondsSinceEpoch}_${path.split('/').last}';
         await file.copy('${scansDir.path}/$fileName');
         // También exportamos a la galería pública
         await Gal.putImage(path);
@@ -141,11 +148,9 @@ class ScannerService {
     final directory = await getApplicationDocumentsDirectory();
     final scansDir = Directory('${directory.path}/scans');
     if (!await scansDir.exists()) return [];
-    
+
     try {
-      return scansDir.listSync()
-          .whereType<File>()
-          .toList()
+      return scansDir.listSync().whereType<File>().toList()
         ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
     } catch (e) {
       return [];
@@ -160,15 +165,18 @@ class ScannerService {
   Future<String> renameFile(String path, String newName) async {
     final oldFileName = path.split(Platform.pathSeparator).last;
     String prefix = "";
-    if (oldFileName.startsWith('A4_')) prefix = "A4_";
-    else if (oldFileName.startsWith('LTR_')) prefix = "LTR_";
-    else if (oldFileName.startsWith('LGL_')) prefix = "LGL_";
+    if (oldFileName.startsWith('A4_')) {
+      prefix = "A4_";
+    } else if (oldFileName.startsWith('LTR_'))
+      prefix = "LTR_";
+    else if (oldFileName.startsWith('LGL_'))
+      prefix = "LGL_";
     else if (oldFileName.startsWith('FRM_')) prefix = "FRM_";
 
     final file = File(path);
     final extension = path.split('.').last;
     final parentDir = file.parent.path;
-    
+
     // Si el usuario no incluyó el prefijo manualmente, se lo reponemos para no perder la etiqueta
     String finalName = newName;
     if (prefix.isNotEmpty && !newName.startsWith(prefix)) {
@@ -180,14 +188,15 @@ class ScannerService {
   }
 
   // PASO 1: Corrección de Fidelidad y Recorte Simétrico
-  Future<String> saveAsPdf(List<String> imagePaths, {PdfPageFormat? format}) async {
+  Future<String> saveAsPdf(List<String> imagePaths,
+      {PdfPageFormat? format}) async {
     final pdf = pw.Document();
     String prefix = 'A4_';
-    if (format == PdfPageFormat.letter) prefix = 'LTR_';
-    else if (format == PdfPageFormat.legal) prefix = 'LGL_';
-    final String processId = '${prefix}${DateTime.now().millisecondsSinceEpoch}';
+    if (format == PdfPageFormat.letter) {
+      prefix = 'LTR_';
+    } else if (format == PdfPageFormat.legal) prefix = 'LGL_';
+    final String processId = '$prefix${DateTime.now().millisecondsSinceEpoch}';
 
-    
     for (var path in imagePaths) {
       final imageBytes = File(path).readAsBytesSync();
       final img.Image? originalImage = img.decodeImage(imageBytes);
@@ -210,22 +219,23 @@ class ScannerService {
           final int newWidth = (originalImage.height * targetAR).toInt();
           pixelsRemovedX = (originalImage.width - newWidth);
           final int xOffset = pixelsRemovedX ~/ 2;
-          processedImage = img.copyCrop(originalImage, x: xOffset, y: 0, width: newWidth, height: originalImage.height);
+          processedImage = img.copyCrop(originalImage,
+              x: xOffset, y: 0, width: newWidth, height: originalImage.height);
         } else {
           // Imagen muy alta: Center Crop vertical
           final int newHeight = (originalImage.width / targetAR).toInt();
           pixelsRemovedY = (originalImage.height - newHeight);
           final int yOffset = pixelsRemovedY ~/ 2;
-          processedImage = img.copyCrop(originalImage, x: 0, y: yOffset, width: originalImage.width, height: newHeight);
+          processedImage = img.copyCrop(originalImage,
+              x: 0, y: yOffset, width: originalImage.width, height: newHeight);
         }
       } else {
         processedImage = originalImage;
       }
 
-
-
       // Optimizamos la calidad a 75% para reducir el peso del PDF (Paso 7)
-      final encodedImage = Uint8List.fromList(img.encodeJpg(processedImage, quality: 75));
+      final encodedImage =
+          Uint8List.fromList(img.encodeJpg(processedImage, quality: 75));
 
       pdf.addPage(
         pw.Page(
@@ -236,7 +246,7 @@ class ScannerService {
               ignoreMargins: true,
               child: pw.Image(
                 pw.MemoryImage(encodedImage),
-                fit: pw.BoxFit.fill, 
+                fit: pw.BoxFit.fill,
               ),
             );
           },
@@ -247,12 +257,13 @@ class ScannerService {
     final directory = await getApplicationDocumentsDirectory();
     final scansDir = Directory('${directory.path}/scans');
     if (!await scansDir.exists()) await scansDir.create(recursive: true);
-    
+
     prefix = 'A4_';
-    if (format == PdfPageFormat.letter) prefix = 'LTR_';
-    else if (format == PdfPageFormat.legal) prefix = 'LGL_';
-    
-    final fileName = '${prefix}${DateTime.now().millisecondsSinceEpoch}.pdf';
+    if (format == PdfPageFormat.letter) {
+      prefix = 'LTR_';
+    } else if (format == PdfPageFormat.legal) prefix = 'LGL_';
+
+    final fileName = '$prefix${DateTime.now().millisecondsSinceEpoch}.pdf';
     final file = File("${scansDir.path}/$fileName");
     await file.writeAsBytes(await pdf.save());
     return file.path;
@@ -270,16 +281,16 @@ class ScannerService {
     final directory = await getApplicationDocumentsDirectory();
     final scansDir = Directory('${directory.path}/scans');
     if (!await scansDir.exists()) await scansDir.create(recursive: true);
-    
+
     final fileName = 'FRM_${DateTime.now().millisecondsSinceEpoch}.png';
     final file = File("${scansDir.path}/$fileName");
     await file.writeAsBytes(bytes);
 
-
     return file.path;
   }
 
-  Future<String?> importAndNormalizePdf(String pdfPath, {PdfPageFormat format = PdfPageFormat.a4}) async {
+  Future<String?> importAndNormalizePdf(String pdfPath,
+      {PdfPageFormat format = PdfPageFormat.a4}) async {
     try {
       final doc = await render.PdfDocument.openFile(pdfPath);
       final tempDir = await getTemporaryDirectory();
@@ -292,16 +303,18 @@ class ScannerService {
           fullWidth: page.width * 4,
           fullHeight: page.height * 4,
         );
-        
+
         if (pageImg != null) {
           final uiImg = await pageImg.createImage();
-          final byteData = await uiImg.toByteData(format: ui.ImageByteFormat.png);
+          final byteData =
+              await uiImg.toByteData(format: ui.ImageByteFormat.png);
           final pngBytes = byteData!.buffer.asUint8List();
-          
-          final tempPath = '${tempDir.path}/norm_${i}_${DateTime.now().millisecondsSinceEpoch}.png';
+
+          final tempPath =
+              '${tempDir.path}/norm_${i}_${DateTime.now().millisecondsSinceEpoch}.png';
           await File(tempPath).writeAsBytes(pngBytes);
           pageImages.add(tempPath);
-          
+
           pageImg.dispose();
           uiImg.dispose();
         }
@@ -309,13 +322,13 @@ class ScannerService {
 
       // Ahora lo guardamos como un PDF nuevo con el formato deseado
       final resultPath = await saveAsPdf(pageImages, format: format);
-      
+
       // Limpiar temporales
       for (var p in pageImages) {
         final f = File(p);
         if (await f.exists()) await f.delete();
       }
-      
+
       return resultPath;
     } catch (e) {
       debugPrint("Error normalizing PDF: $e");
@@ -328,10 +341,11 @@ class ScannerService {
       final directory = await getApplicationDocumentsDirectory();
       final scansDir = Directory('${directory.path}/scans');
       if (!await scansDir.exists()) await scansDir.create(recursive: true);
-      
+
       final originalFileName = externalPath.split(Platform.pathSeparator).last;
       // Por defecto asumimos A4 para importaciones externas de archivos PDF
-      final newPath = '${scansDir.path}/A4_Import_${DateTime.now().millisecondsSinceEpoch}_$originalFileName';
+      final newPath =
+          '${scansDir.path}/A4_Import_${DateTime.now().millisecondsSinceEpoch}_$originalFileName';
       return await File(externalPath).copy(newPath);
     } catch (e) {
       return null;
@@ -342,6 +356,4 @@ class ScannerService {
     _documentScanner.close();
     _textRecognizer.close();
   }
-
-  
 }

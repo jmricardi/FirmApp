@@ -24,13 +24,15 @@ class AuthService with ChangeNotifier {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return;
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final UserCredential userCredential =
+          await _auth.signInWithCredential(credential);
       await _ensureUserDocument(userCredential.user!);
     } catch (e) {
       debugPrint('Error en Google Sign In: $e');
@@ -40,21 +42,25 @@ class AuthService with ChangeNotifier {
 
   Future<void> signInWithEmail(String email, String password) async {
     try {
-      final UserCredential credential = await _auth.signInWithEmailAndPassword(email: email, password: password);
+      final UserCredential credential = await _auth.signInWithEmailAndPassword(
+          email: email, password: password);
       if (credential.user != null) {
         await _ensureUserDocument(credential.user!);
       }
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') throw 'No existe una cuenta con este email.';
+      if (e.code == 'user-not-found')
+        throw 'No existe una cuenta con este email.';
       if (e.code == 'wrong-password') throw 'Contraseña incorrecta.';
       rethrow;
     }
   }
 
-  Future<void> registerWithEmail(String email, String password, String displayName) async {
+  Future<void> registerWithEmail(
+      String email, String password, String displayName) async {
     try {
-      final UserCredential credential = await _auth.createUserWithEmailAndPassword(
-        email: email, 
+      final UserCredential credential =
+          await _auth.createUserWithEmailAndPassword(
+        email: email,
         password: password,
       );
       await credential.user!.updateDisplayName(displayName);
@@ -71,7 +77,8 @@ class AuthService with ChangeNotifier {
     try {
       await _auth.sendPasswordResetEmail(email: email);
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') throw 'No hay ninguna cuenta con este email.';
+      if (e.code == 'user-not-found')
+        throw 'No hay ninguna cuenta con este email.';
       rethrow;
     }
   }
@@ -81,10 +88,10 @@ class AuthService with ChangeNotifier {
       debugPrint('Verificando perfil Firestore para UID: ${user.uid}');
       final docRef = _db.collection('users').doc(user.uid);
       final doc = await docRef.get().timeout(const Duration(seconds: 10));
-      
+
       final packageInfo = await PackageInfo.fromPlatform();
       final bool docExists = doc.exists;
-      final Map<String, dynamic>? data = docExists ? (doc.data() as Map<String, dynamic>?) : null;
+      final Map<String, dynamic>? data = docExists ? doc.data() : null;
 
       // 1. Datos base que SIEMPRE se actualizan (Conexión, Versión)
       final Map<String, dynamic> updates = {
@@ -93,20 +100,16 @@ class AuthService with ChangeNotifier {
         'email': user.email ?? data?['email'] ?? '',
       };
 
-      // 2. Si el documento NO existe, inicializamos valores de bienvenida
-      if (!docExists || data == null || !data.containsKey('credits')) {
-        debugPrint('Inicializando nuevo perfil de usuario con créditos de bienvenida...');
-        
-        updates['createdAt'] = data?['createdAt'] ?? FieldValue.serverTimestamp();
-        updates['displayName'] = initialName ?? user.displayName ?? data?['displayName'] ?? 'Usuario';
-        
-        // El regalo de bienvenida ahora se gestiona desde el UI (HomeScreen) 
-        // para asegurar la sincronización perfecta con el dashboard.
-        if (data == null || !data.containsKey('credits')) {
-          updates['credits'] = 0; // Inicializa en 0, se sumarán al reclamar el regalo
-          updates['total_spent'] = 0;
-          updates['total_earned'] = 0;
-        }
+      // 2. Si el documento NO existe, inicializamos valores base
+      if (!docExists || data == null) {
+        debugPrint('Inicializando nuevo perfil de usuario...');
+
+        updates['createdAt'] =
+            data?['createdAt'] ?? FieldValue.serverTimestamp();
+        updates['displayName'] = initialName ??
+            user.displayName ??
+            data?['displayName'] ??
+            'Usuario';
       } else {
         // Usuario ya existe, limpiar cualquier referido pendiente para evitar errores
         final prefs = await SharedPreferences.getInstance();
@@ -119,7 +122,6 @@ class AuthService with ChangeNotifier {
       // 3. Guardar/Actualizar en Firestore
       await docRef.set(updates, SetOptions(merge: true));
       debugPrint('Perfil actualizado/verificado con éxito en Firestore.');
-
     } catch (e) {
       debugPrint('ERROR CRÍTICO en _ensureUserDocument: $e');
     }

@@ -42,6 +42,14 @@
                 <data android:mimeType="image/*" />
                 <data android:mimeType="application/pdf" />
             </intent-filter>
+
+            <!-- App Links para referidos (FirmApp) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="firmapp-ad67f.web.app" />
+            </intent-filter>
         </activity>
         <meta-data
             android:name="flutterEmbedding"

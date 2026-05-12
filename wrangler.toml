@@ -2,16 +2,12 @@ name = "firmapp-credits-worker"
 main = "cloudflare_worker.js"
 compatibility_date = "2024-05-01"
 
-# Variables de entorno para seguridad e identificación
 [vars]
-WORker_SECRET = "SuperEasyScan2024"
 FIREBASE_PROJECT_ID = "firmapp-ad67f" 
 
-# Activación de la Inteligencia Artificial en el Worker
 [ai]
 binding = "AI"
 
-# Configuración de compatibilidad para evitar errores de red en peticiones grandes (como imágenes)
 [observability]
 enabled = true
 

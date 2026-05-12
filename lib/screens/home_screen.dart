@@ -30,7 +30,8 @@ class HomeScreen extends StatefulWidget {
 
 enum GridMode { import, signature, none }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _scanner = ScannerService();
   final _picker = ImagePicker();
@@ -39,8 +40,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   final Set<String> _selectedFiles = {};
   bool _isProcessing = false;
   final Map<String, int> _pageCountCache = {};
-  final Map<String, ui.Image> _thumbnailCache = {}; 
+  final Map<String, ui.Image> _thumbnailCache = {};
   bool _isHelpModeEnabled = false;
+  bool _welcomeDialogShown =
+      false; // Flag para evitar duplicación del diálogo de bienvenida
 
   @override
   void initState() {
@@ -82,19 +85,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final user = context.read<AuthService>().currentUser;
     if (user == null) return;
 
-    final String inviteMsg = 
-      "¡Hola! Te recomiendo FirmApp para escanear y firmar documentos PDF desde tu celular. "
-      "Es súper rápida y profesional. Descárgala aquí: "
-      "https://firmafacil.page.link/invite?ref=${user.uid}\n\n"
-      "¡Si te registras con este link, ambos recibiremos 5 creditos de beneficios!";
+    final String inviteMsg =
+        "¡Hola! Te recomiendo FirmApp para gestionar tus documentos PDF. "
+        "Es rápida, segura y profesional. Descárgala aquí y recibe créditos de regalo: "
+        "https://firmapp-ad67f.web.app/invite?ref=${user.uid}\n\n"
+        "¡Usa mi código de referido para obtener beneficios extra!";
 
     await Share.share(inviteMsg, subject: 'Te recomiendo FirmApp');
   }
 
   Future<int> _getPageCount(File file) async {
     if (!file.path.toLowerCase().endsWith('.pdf')) return 1;
-    if (_pageCountCache.containsKey(file.path)) return _pageCountCache[file.path]!;
-    
+    if (_pageCountCache.containsKey(file.path)) {
+      return _pageCountCache[file.path]!;
+    }
+
     try {
       final doc = await render.PdfDocument.openFile(file.path);
       final count = doc.pages.length;
@@ -108,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Future<void> _showPdfImportDialog(String path) async {
     PdfPageFormat selected = PdfPageFormat.a4;
     final creditService = context.read<CreditService>();
-    
+
     setState(() => _isProcessing = true);
     // Ajuste 6: Evaluación de medida más adecuada
     try {
@@ -117,11 +122,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         final firstPage = doc.pages.first;
         final pw = firstPage.width;
         final ph = firstPage.height;
-        
+
         // Comparación simple por área y proporción
-        if (pw > 600 || ph > 900) selected = PdfPageFormat.legal;
-        else if (pw > 550) selected = PdfPageFormat.letter;
-        else selected = PdfPageFormat.a4;
+        if (pw > 600 || ph > 900) {
+          selected = PdfPageFormat.legal;
+        } else if (pw > 550)
+          selected = PdfPageFormat.letter;
+        else
+          selected = PdfPageFormat.a4;
       }
     } catch (e) {
       debugPrint("Error evaluando PDF: $e");
@@ -134,33 +142,39 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text("Normalizar PDF", style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+          title: Text("Normalizar PDF",
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Selecciona el formato para estandarizar todas las páginas. Sugerimos el marcado por sus dimensiones originales:", 
-                style: TextStyle(fontSize: 13)),
+              const Text(
+                  "Selecciona el formato para estandarizar todas las páginas. Sugerimos el marcado por sus dimensiones originales:",
+                  style: TextStyle(fontSize: 13)),
               const SizedBox(height: 20),
-              _pageSizeBtn("A4 (Estándar)", PdfPageFormat.a4, selected, (fmt) => setDialogState(() => selected = fmt)),
-              _pageSizeBtn("CARTA (Letter)", PdfPageFormat.letter, selected, (fmt) => setDialogState(() => selected = fmt)),
-              _pageSizeBtn("OFICIO (Legal)", PdfPageFormat.legal, selected, (fmt) => setDialogState(() => selected = fmt)),
+              _pageSizeBtn("A4 (Estándar)", PdfPageFormat.a4, selected,
+                  (fmt) => setDialogState(() => selected = fmt)),
+              _pageSizeBtn("CARTA (Letter)", PdfPageFormat.letter, selected,
+                  (fmt) => setDialogState(() => selected = fmt)),
+              _pageSizeBtn("OFICIO (Legal)", PdfPageFormat.legal, selected,
+                  (fmt) => setDialogState(() => selected = fmt)),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancelar")),
             SizedBox(
               height: 50,
               child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurpleAccent, 
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20)
-                ),
-                icon: const Icon(Icons.auto_fix_high, size: 18),
-                onPressed: () => Navigator.pop(context, selected), 
-                label: const Text("PROCESAR (1 🪙)", style: TextStyle(fontWeight: FontWeight.bold))
-              ),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurpleAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20)),
+                  icon: const Icon(Icons.auto_fix_high, size: 18),
+                  onPressed: () => Navigator.pop(context, selected),
+                  label: const Text("PROCESAR (1 🪙)",
+                      style: TextStyle(fontWeight: FontWeight.bold))),
             ),
           ],
         ),
@@ -171,9 +185,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       // Ajuste 9: Verificar créditos con opción de anuncio
       final hasCredits = await _ensureCredits(1, "normalizar este PDF");
       if (!hasCredits) return;
-      
+
       setState(() => _isProcessing = true);
-      final success = await creditService.useCredit(amount: 1, description: "Importación de PDF Profesional");
+      final success = await creditService.useCredit(
+          amount: 1, description: "Importación de PDF Profesional");
       if (success) {
         await _scanner.importAndNormalizePdf(path, format: result);
         _loadGallery();
@@ -193,37 +208,49 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         barrierDismissible: false,
         builder: (context) => Consumer<CreditService>(
           builder: (context, cs, _) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Row(
               children: [
                 const Icon(Icons.stars, color: Colors.amber),
                 const SizedBox(width: 10),
-                Text("Créditos Insuficientes", style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                Text("Créditos Insuficientes",
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
               ],
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Necesitas $required 🪙 para $actionLabel.", style: const TextStyle(fontWeight: FontWeight.w500)),
+                Text("Necesitas $required 🪙 para $actionLabel.",
+                    style: const TextStyle(fontWeight: FontWeight.w500)),
                 const SizedBox(height: 8),
-                Text("Tu saldo actual: ${cs.credits} 🪙", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+                Text("Tu saldo actual: ${cs.credits} 🪙",
+                    style: const TextStyle(
+                        color: Colors.amber, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
-                const Text("¿Deseas ver un anuncio para ganar 1 🪙 y poder continuar?"),
+                const Text(
+                    "¿Deseas ver un anuncio para ganar 1 🪙 y poder continuar?"),
               ],
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Ahora no", style: TextStyle(color: Colors.grey))),
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text("Ahora no",
+                      style: TextStyle(color: Colors.grey))),
               ElevatedButton(
-                onPressed: adService.isAdLoaded ? () => Navigator.pop(context, true) : null,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(180, 48),
-                  backgroundColor: Colors.deepPurpleAccent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text("Ver Anuncio (+1 🪙)", style: TextStyle(fontWeight: FontWeight.bold))
-              ),
+                  onPressed: adService.isAdLoaded
+                      ? () => Navigator.pop(context, true)
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(180, 48),
+                    backgroundColor: Colors.deepPurpleAccent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text("Ver Anuncio (+1 🪙)",
+                      style: TextStyle(fontWeight: FontWeight.bold))),
             ],
           ),
         ),
@@ -232,10 +259,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       if (res == true) {
         final earned = await adService.showRewardedAd();
         if (earned) {
-          // Ajuste: Await para asegurar que el saldo se actualice antes de la siguiente iteración
-          await creditService.addCredit();
+          // Asegurar que el servidor registre el crédito antes de refrescar la UI
+          await creditService.addCredit(
+            description: "Recompensa por Publicidad",
+            customIdempotencyKey: "ad_reward_${DateTime.now().millisecondsSinceEpoch}_${creditService.uid}"
+          );
+          // Forzar refresco manual para garantizar que el usuario vea el cambio
+          await creditService.fetchCredits();
         } else {
-          return false; // El usuario cerró el anuncio o falló
+          return false;
         }
       } else {
         return false; // El usuario canceló
@@ -251,19 +283,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     try {
       final images = await _scanner.captureDocuments(
-        checkQuality: settings.isQualityFilterEnabled
-      );
-      
+          checkQuality: settings.isQualityFilterEnabled);
+
       if (images != null && images.isNotEmpty) {
         setState(() => _isProcessing = true);
-        
+
         List<String> refinedImages = [];
         PdfPageFormat? finalFormat;
 
         for (var imgPath in images) {
           final result = await Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => DocumentRefineScreen(imagePath: imgPath)),
+            MaterialPageRoute(
+                builder: (context) => DocumentRefineScreen(imagePath: imgPath)),
           );
 
           if (result != null && result is Map) {
@@ -286,7 +318,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           return;
         }
 
-        final success = await creditService.useCredit(amount: 1, description: "Escaneo de Documento");
+        final success = await creditService.useCredit(
+            amount: 1, description: "Escaneo de Documento");
         if (success) {
           await _scanner.saveAsPdf(refinedImages, format: finalFormat);
         }
@@ -305,12 +338,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 children: [
                   const Icon(Icons.warning_amber_rounded, color: Colors.white),
                   const SizedBox(width: 12),
-                  const Expanded(child: Text('La imagen no era útil por no verse bien y fue descartada. Por favor, toma otra imagen con más iluminación y estabilidad.')),
+                  const Expanded(
+                      child: Text(
+                          'La imagen no era útil por no verse bien y fue descartada. Por favor, toma otra imagen con más iluminación y estabilidad.')),
                 ],
               ),
               backgroundColor: Colors.orangeAccent,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
           );
         }
@@ -335,23 +371,56 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 24),
             ListTile(
-              onTap: () { Navigator.pop(context); _handleScan(); },
-              leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.deepPurpleAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.document_scanner, color: Colors.deepPurpleAccent)),
-              title: const Text('Escanear Documento', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              subtitle: const Text('Usar la cámara para digitalizar', style: TextStyle(color: Colors.grey, fontSize: 12)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: const BorderSide(color: Colors.white10)),
+              onTap: () {
+                Navigator.pop(context);
+                _handleScan();
+              },
+              leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                      color: Colors.deepPurpleAccent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.document_scanner,
+                      color: Colors.deepPurpleAccent)),
+              title: const Text('Escanear Documento',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
+              subtitle: const Text('Usar la cámara para digitalizar',
+                  style: TextStyle(color: Colors.grey, fontSize: 12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  side: const BorderSide(color: Colors.white10)),
               tileColor: Colors.white.withOpacity(0.05),
             ),
             const SizedBox(height: 12),
             ListTile(
-              onTap: () { Navigator.pop(context); _handleImport(); },
-              leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.file_upload_outlined, color: Colors.blueAccent)),
-              title: Text(LocalizationService.translate('import_file', lang), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              subtitle: const Text('Seleccionar PDF o imagen existente', style: TextStyle(color: Colors.grey, fontSize: 12)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: const BorderSide(color: Colors.white10)),
+              onTap: () {
+                Navigator.pop(context);
+                _handleImport();
+              },
+              leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                      color: Colors.blueAccent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.file_upload_outlined,
+                      color: Colors.blueAccent)),
+              title: Text(LocalizationService.translate('import_file', lang),
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
+              subtitle: const Text('Seleccionar PDF o imagen existente',
+                  style: TextStyle(color: Colors.grey, fontSize: 12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  side: const BorderSide(color: Colors.white10)),
               tileColor: Colors.white.withOpacity(0.05),
             ),
             const SizedBox(height: 24),
@@ -372,14 +441,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
       if (result != null && result.files.single.path != null) {
         final path = result.files.single.path!;
-        
+
         if (path.toLowerCase().endsWith('.pdf')) {
           await _showPdfImportDialog(path);
         } else {
           setState(() => _isProcessing = true);
           List<String> refinedImages = []; // Declaración añadida
           PdfPageFormat? finalFormat; // Declaración añadida
-          
+
           final settings = context.read<SettingsService>();
           if (settings.isQualityFilterEnabled) {
             final isGood = await _scanner.checkImageQuality(path);
@@ -390,14 +459,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   SnackBar(
                     content: Row(
                       children: [
-                        const Icon(Icons.warning_amber_rounded, color: Colors.white),
+                        const Icon(Icons.warning_amber_rounded,
+                            color: Colors.white),
                         const SizedBox(width: 12),
-                        const Expanded(child: Text('La imagen no era útil por no verse bien y fue descartada. Por favor, toma o selecciona otra imagen con más iluminación y estabilidad.')),
+                        const Expanded(
+                            child: Text(
+                                'La imagen no era útil por no verse bien y fue descartada. Por favor, toma o selecciona otra imagen con más iluminación y estabilidad.')),
                       ],
                     ),
                     backgroundColor: Colors.orangeAccent,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                 );
               }
@@ -408,7 +481,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           // Refinamiento Manual para Importación
           final result = await Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => DocumentRefineScreen(imagePath: path)),
+            MaterialPageRoute(
+                builder: (context) => DocumentRefineScreen(imagePath: path)),
           );
 
           if (result != null && result is Map) {
@@ -420,7 +494,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             setState(() => _isProcessing = false);
             return;
           }
-          
+
           // Ajuste 9: Verificar créditos con opción de anuncio
           final hasCredits = await _ensureCredits(1, "importar esta imagen");
           if (!hasCredits) {
@@ -428,11 +502,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             return;
           }
 
-          final success = await creditService.useCredit(amount: 1, description: "Importación de Imagen Profesional");
+          final success = await creditService.useCredit(
+              amount: 1, description: "Importación de Imagen Profesional");
           if (success) {
             await _scanner.saveAsPdf(refinedImages, format: finalFormat);
           }
-          
+
           _loadGallery();
           setState(() => _isProcessing = false);
         }
@@ -442,9 +517,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
-  
-
-  Widget _pageSizeBtn(String title, PdfPageFormat format, PdfPageFormat selected, Function(PdfPageFormat) onSelect) {
+  Widget _pageSizeBtn(String title, PdfPageFormat format,
+      PdfPageFormat selected, Function(PdfPageFormat) onSelect) {
     bool isSelected = format == selected;
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
@@ -454,19 +528,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.deepPurpleAccent.withOpacity(0.1) : Colors.transparent,
+            color: isSelected
+                ? Colors.deepPurpleAccent.withOpacity(0.1)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: isSelected ? Colors.deepPurpleAccent : Colors.transparent),
+            border: Border.all(
+                color:
+                    isSelected ? Colors.deepPurpleAccent : Colors.transparent),
           ),
           child: Row(
             children: [
-              Icon(isSelected ? Icons.radio_button_checked : Icons.radio_button_off, 
-                   color: isSelected ? Colors.deepPurpleAccent : Colors.grey, size: 20),
+              Icon(
+                  isSelected
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                  color: isSelected ? Colors.deepPurpleAccent : Colors.grey,
+                  size: 20),
               const SizedBox(width: 12),
-              Text(title, style: GoogleFonts.outfit(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.deepPurpleAccent : Theme.of(context).colorScheme.onSurface,
-              )),
+              Text(title,
+                  style: GoogleFonts.outfit(
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected
+                        ? Colors.deepPurpleAccent
+                        : Theme.of(context).colorScheme.onSurface,
+                  )),
             ],
           ),
         ),
@@ -475,11 +561,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _showRenameDialog(File file) {
-    String rawName = file.path.split(Platform.pathSeparator).last.split('.').first;
+    String rawName =
+        file.path.split(Platform.pathSeparator).last.split('.').first;
     String displayName = rawName;
-    if (rawName.startsWith('A4_')) displayName = rawName.substring(3);
-    else if (rawName.startsWith('LTR_')) displayName = rawName.substring(4);
-    else if (rawName.startsWith('LGL_')) displayName = rawName.substring(4);
+    if (rawName.startsWith('A4_')) {
+      displayName = rawName.substring(3);
+    } else if (rawName.startsWith('LTR_'))
+      displayName = rawName.substring(4);
+    else if (rawName.startsWith('LGL_'))
+      displayName = rawName.substring(4);
     else if (rawName.startsWith('Firma_')) displayName = rawName.substring(6);
 
     final controller = TextEditingController(text: displayName);
@@ -490,11 +580,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         title: const Text('Renombrar'),
         content: TextField(controller: controller),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar')),
           ElevatedButton(
             onPressed: () async {
               await _scanner.renameFile(file.path, controller.text);
-              if (mounted) { Navigator.pop(context); _loadGallery(); setState(() => _selectedFiles.clear()); }
+              if (mounted) {
+                Navigator.pop(context);
+                _loadGallery();
+                setState(() => _selectedFiles.clear());
+              }
             },
             child: const Text('Guardar'),
           ),
@@ -511,12 +607,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         title: const Text('Eliminar'),
         content: Text('¿Deseas eliminar ${files.length} archivo(s)?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
-              for (var f in files) { await _scanner.deleteFile(f.path); }
-              if (mounted) { Navigator.pop(context); _loadGallery(); setState(() => _selectedFiles.clear()); }
+              for (var f in files) {
+                await _scanner.deleteFile(f.path);
+              }
+              if (mounted) {
+                Navigator.pop(context);
+                _loadGallery();
+                setState(() => _selectedFiles.clear());
+              }
             },
             child: const Text('Eliminar'),
           ),
@@ -527,7 +631,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _showHistorySheet() {
     final creditService = context.read<CreditService>();
-    creditService.fetchHistory(); 
+    creditService.fetchHistory();
 
     showModalBottomSheet(
       context: context,
@@ -543,15 +647,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           child: Column(
             children: [
               const SizedBox(height: 15),
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+              Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 25),
-              Text("Historial de Movimientos", style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text("Historial de Movimientos",
+                  style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white)),
               const SizedBox(height: 20),
               Expanded(
                 child: Consumer<CreditService>(
                   builder: (context, svc, _) {
                     if (svc.history.isEmpty) {
-                      return Center(child: Text("No hay movimientos registrados", style: TextStyle(color: Colors.grey)));
+                      return Center(
+                          child: Text("No hay movimientos registrados",
+                              style: TextStyle(color: Colors.grey)));
                     }
                     return ListView.builder(
                       itemCount: svc.history.length,
@@ -570,22 +685,38 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           child: Row(
                             children: [
                               CircleAvatar(
-                                backgroundColor: isAdd ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                                child: Icon(isAdd ? Icons.add_circle_outline : Icons.remove_circle_outline, color: isAdd ? Colors.green : Colors.redAccent),
+                                backgroundColor: isAdd
+                                    ? Colors.green.withOpacity(0.1)
+                                    : Colors.red.withOpacity(0.1),
+                                child: Icon(
+                                    isAdd
+                                        ? Icons.add_circle_outline
+                                        : Icons.remove_circle_outline,
+                                    color: isAdd
+                                        ? Colors.green
+                                        : Colors.redAccent),
                               ),
                               const SizedBox(width: 15),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(item['description'] ?? "Servicio", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                    Text(item['timestamp']?.toString() ?? "", style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                                    Text(item['description'] ?? "Servicio",
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold)),
+                                    Text(item['timestamp']?.toString() ?? "",
+                                        style: const TextStyle(
+                                            color: Colors.grey, fontSize: 10)),
                                   ],
                                 ),
                               ),
                               Text(
                                 "${isAdd ? '+' : ''}$amount",
-                                style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: isAdd ? Colors.green : Colors.white),
+                                style: GoogleFonts.outfit(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: isAdd ? Colors.green : Colors.white),
                               ),
                             ],
                           ),
@@ -610,35 +741,54 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final credits = creditService.credits;
 
     // Ajuste 2: Mensaje de Bienvenida para nuevos usuarios
-    if (!context.read<SettingsService>().hasSeenWelcome && credits == 5 && creditService.history.isEmpty) {
+    // Ignoramos 'hasSeenWelcome' local para basarnos 100% en el servidor
+    if (!_welcomeDialogShown &&
+        credits == 0 &&
+        creditService.history.isEmpty &&
+        !creditService.isLoading) {
+      _welcomeDialogShown = true;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (mounted && !Navigator.of(context).canPop()) { 
+        if (mounted && !Navigator.of(context).canPop()) {
           // Marcamos como visto antes de mostrar para evitar colisiones de build
           await context.read<SettingsService>().setWelcomeSeen();
-          
+
+          if (!mounted) return;
+
+          // Registrar el bono de bienvenida en el backend (D1)
+          await creditService.addCredit(
+            amount: 5,
+            description: "Bono de Bienvenida",
+            customIdempotencyKey: "welcome_bonus_${creditService.uid}",
+          );
+
           if (!mounted) return;
 
           showDialog(
             context: context,
             barrierDismissible: false,
             builder: (dialogContext) => AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: Text("¡Bienvenido a FirmApp!", style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-              content: const Text("Gracias por elegirnos para gestionar tus documentos. Te hemos regalado 5 créditos iniciales para que pruebes todas nuestras funciones.\n\n¡Esperamos que te sea de gran utilidad!"),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              title: Text("¡Bienvenido a FirmApp!",
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+              content: const Text(
+                  "Gracias por elegirnos para gestionar tus documentos. Te hemos regalado 5 créditos iniciales para que pruebes todas nuestras funciones.\n\n¡Esperamos que te sea de gran utilidad!"),
               actions: [
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurpleAccent,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(180, 50), // BOTÓN MÁS ANCHO
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: () => Navigator.of(dialogContext).pop(), 
-                      child: const Text("Comenzar", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
-                    ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepPurpleAccent,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(180, 50), // BOTÓN MÁS ANCHO
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        child: const Text("Comenzar",
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16))),
                   ),
                 )
               ],
@@ -651,12 +801,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     // Lógica de Force Update (Ahora vía Remote Config)
     final remoteConfig = RemoteConfigService();
-    if (remoteConfig.forceUpdateVersion.isNotEmpty && creditService.localVersion.isNotEmpty) {
-      if (_isVersionLower(creditService.localVersion, remoteConfig.forceUpdateVersion)) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _showForceUpdateDialog(context, remoteConfig.forceUpdateVersion));
+    if (remoteConfig.forceUpdateVersion.isNotEmpty &&
+        creditService.localVersion.isNotEmpty) {
+      if (_isVersionLower(
+          creditService.localVersion, remoteConfig.forceUpdateVersion)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) =>
+            _showForceUpdateDialog(context, remoteConfig.forceUpdateVersion));
       }
     }
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -679,16 +832,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             message: "Configura las preferencias de la aplicación y el idioma.",
             isEnabled: _isHelpModeEnabled,
             balloonAlignment: Alignment.topLeft,
-            child: IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () {
-              setState(() => _selectedFiles.clear());
-              Navigator.pushNamed(context, '/settings');
-            }),
+            child: IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () {
+                  setState(() => _selectedFiles.clear());
+                  Navigator.pushNamed(context, '/settings');
+                }),
           ),
           _HelpBalloon(
             message: "Cierra tu sesión de forma segura.",
             isEnabled: _isHelpModeEnabled,
             balloonAlignment: Alignment.topLeft,
-            child: IconButton(icon: const Icon(Icons.logout), onPressed: () => context.read<AuthService>().signOut()),
+            child: IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: () => context.read<AuthService>().signOut()),
           ),
         ],
       ),
@@ -705,28 +862,41 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     Expanded(
                       flex: 2,
                       child: _HelpBalloon(
-                        message: "Muestra tus créditos disponibles para firmar y procesar documentos.",
+                        message:
+                            "Muestra tus créditos disponibles para firmar y procesar documentos.",
                         isEnabled: _isHelpModeEnabled,
                         child: GestureDetector(
                           onTap: _showHistorySheet,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
                             decoration: BoxDecoration(
                               color: Colors.deepPurpleAccent.withOpacity(0.05),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.1)),
+                              border: Border.all(
+                                  color:
+                                      Colors.deepPurpleAccent.withOpacity(0.1)),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.stars, color: Colors.amber, size: 20),
+                                const Icon(Icons.stars,
+                                    color: Colors.amber, size: 20),
                                 const SizedBox(width: 4),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Text('CREDITS', style: GoogleFonts.outfit(fontSize: 8, color: Colors.grey, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
-                                    Text('$credits', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
+                                    Text('CREDITS',
+                                        style: GoogleFonts.outfit(
+                                            fontSize: 8,
+                                            color: Colors.grey,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: 0.5)),
+                                    Text('$credits',
+                                        style: GoogleFonts.outfit(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold)),
                                   ],
                                 ),
                               ],
@@ -740,40 +910,56 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     Expanded(
                       flex: 2,
                       child: _HelpBalloon(
-                        message: "Mira un anuncio corto para ganar 1 crédito gratis.",
+                        message:
+                            "Mira un anuncio corto para ganar 1 crédito gratis.",
                         isEnabled: _isHelpModeEnabled,
                         child: Material(
                           color: Colors.transparent,
                           child: InkWell(
-                            onTap: adService.isAdLoaded ? () async {
-                              final earned = await adService.showRewardedAd();
-                              if (earned) context.read<CreditService>().addCredit();
-                            } : null,
+                            onTap: adService.isAdLoaded
+                                ? () async {
+                                    final earned =
+                                        await adService.showRewardedAd();
+                                    if (earned) {
+                                      await context
+                                          .read<CreditService>()
+                                          .addCredit();
+                                    }
+                                  }
+                                : null,
                             borderRadius: BorderRadius.circular(20),
                             child: Container(
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: adService.isAdLoaded ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.08),
+                                color: adService.isAdLoaded
+                                    ? Colors.green.withOpacity(0.1)
+                                    : Colors.grey.withOpacity(0.08),
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: adService.isAdLoaded ? Colors.green.withOpacity(0.4) : Colors.grey.withOpacity(0.2)),
+                                border: Border.all(
+                                    color: adService.isAdLoaded
+                                        ? Colors.green.withOpacity(0.4)
+                                        : Colors.grey.withOpacity(0.2)),
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    adService.isAdLoaded ? Icons.play_circle_fill : Icons.play_circle_outline, 
-                                    color: adService.isAdLoaded ? Colors.green : Colors.grey.withOpacity(0.4),
+                                    adService.isAdLoaded
+                                        ? Icons.play_circle_fill
+                                        : Icons.play_circle_outline,
+                                    color: adService.isAdLoaded
+                                        ? Colors.green
+                                        : Colors.grey.withOpacity(0.4),
                                     size: 20,
                                   ),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    adService.isAdLoaded ? '+1' : '...', 
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 14, 
-                                      fontWeight: FontWeight.bold,
-                                      color: adService.isAdLoaded ? Colors.green : Colors.grey.withOpacity(0.4)
-                                    )
-                                  ),
+                                  Text(adService.isAdLoaded ? '+1' : '...',
+                                      style: GoogleFonts.outfit(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: adService.isAdLoaded
+                                              ? Colors.green
+                                              : Colors.grey.withOpacity(0.4))),
                                 ],
                               ),
                             ),
@@ -786,7 +972,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     Expanded(
                       flex: 2,
                       child: _HelpBalloon(
-                        message: "Recomienda la app a un amigo y gana 5 créditos gratis.",
+                        message:
+                            "Recomienda la app a un amigo y gana 5 créditos gratis.",
                         isEnabled: _isHelpModeEnabled,
                         child: Material(
                           color: Colors.transparent,
@@ -798,14 +985,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               decoration: BoxDecoration(
                                 color: Colors.blueAccent.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.blueAccent.withOpacity(0.2)),
+                                border: Border.all(
+                                    color: Colors.blueAccent.withOpacity(0.2)),
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.person_add_alt_1, color: Colors.blueAccent, size: 20),
+                                  const Icon(Icons.person_add_alt_1,
+                                      color: Colors.blueAccent, size: 20),
                                   const SizedBox(width: 4),
-                                  Text('+5', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+                                  Text('+5',
+                                      style: GoogleFonts.outfit(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blueAccent)),
                                 ],
                               ),
                             ),
@@ -817,23 +1010,34 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     Expanded(
                       flex: 1,
                       child: _HelpBalloon(
-                        message: "Activa/Desactiva el modo de ayuda interactiva.",
+                        message:
+                            "Activa/Desactiva el modo de ayuda interactiva.",
                         isEnabled: false,
                         child: Material(
                           color: Colors.transparent,
                           child: InkWell(
-                            onTap: () => setState(() => _isHelpModeEnabled = !_isHelpModeEnabled),
+                            onTap: () => setState(
+                                () => _isHelpModeEnabled = !_isHelpModeEnabled),
                             borderRadius: BorderRadius.circular(20),
                             child: Container(
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: _isHelpModeEnabled ? Colors.amber.withOpacity(0.1) : Colors.white.withOpacity(0.05),
+                                color: _isHelpModeEnabled
+                                    ? Colors.amber.withOpacity(0.1)
+                                    : Colors.white.withOpacity(0.05),
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: _isHelpModeEnabled ? Colors.amber : Colors.grey.withOpacity(0.5)),
+                                border: Border.all(
+                                    color: _isHelpModeEnabled
+                                        ? Colors.amber
+                                        : Colors.grey.withOpacity(0.5)),
                               ),
                               child: Icon(
-                                _isHelpModeEnabled ? Icons.help : Icons.help_outline, 
-                                color: _isHelpModeEnabled ? Colors.amber : Colors.grey,
+                                _isHelpModeEnabled
+                                    ? Icons.help
+                                    : Icons.help_outline,
+                                color: _isHelpModeEnabled
+                                    ? Colors.amber
+                                    : Colors.grey,
                                 size: 22,
                               ),
                             ),
@@ -849,31 +1053,41 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: Column(
                 children: [
                   _HelpBalloon(
-                    message: "Alterna entre tus documentos PDF y tus firmas guardadas.",
+                    message:
+                        "Alterna entre tus documentos PDF y tus firmas guardadas.",
                     isEnabled: _isHelpModeEnabled,
                     balloonAlignment: Alignment.topLeft,
                     child: TabBar(
-                      controller: _tabController,
-                      tabs: [Tab(text: LocalizationService.translate('my_docs', lang)), Tab(text: LocalizationService.translate('signature', lang))], 
-                      indicatorColor: Colors.deepPurpleAccent, 
-                      labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold)
-                    ),
+                        controller: _tabController,
+                        tabs: [
+                          Tab(
+                              text: LocalizationService.translate(
+                                  'my_docs', lang)),
+                          Tab(
+                              text: LocalizationService.translate(
+                                  'signature', lang))
+                        ],
+                        indicatorColor: Colors.deepPurpleAccent,
+                        labelStyle:
+                            GoogleFonts.outfit(fontWeight: FontWeight.bold)),
                   ),
-                  Expanded(child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildDocumentGrid(_scannedDocs, GridMode.import), 
-                      _buildDocumentGrid(_savedSignatures, GridMode.signature)
-                    ]
-                  )),
+                  Expanded(
+                      child: TabBarView(controller: _tabController, children: [
+                    _buildDocumentGrid(_scannedDocs, GridMode.import),
+                    _buildDocumentGrid(_savedSignatures, GridMode.signature)
+                  ])),
                 ],
               ),
             ),
           ]),
-          if (_isProcessing) Container(color: Colors.black54, child: const Center(child: CircularProgressIndicator())),
+          if (_isProcessing)
+            Container(
+                color: Colors.black54,
+                child: const Center(child: CircularProgressIndicator())),
         ],
       ),
-      bottomNavigationBar: _selectedFiles.isEmpty ? null : _buildBottomActions(lang),
+      bottomNavigationBar:
+          _selectedFiles.isEmpty ? null : _buildBottomActions(lang),
     );
   }
 
@@ -883,86 +1097,154 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     return GridView.builder(
       padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 0.85),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 0.85),
       itemCount: docs.length + (mode != GridMode.none ? 1 : 0),
       itemBuilder: (context, index) {
         if (mode != GridMode.none && index == docs.length) {
-          return mode == GridMode.import ? _buildAddButton() : _buildAddSignatureButton();
+          return mode == GridMode.import
+              ? _buildAddButton()
+              : _buildAddSignatureButton();
         }
-        
+
         final file = docs[index];
         final isSelected = _selectedFiles.contains(file.path);
         final isPdf = file.path.toLowerCase().endsWith('.pdf');
-        
+
         String label = 'PDF';
-        if (file.path.contains('A4_')) label = 'A4';
-        else if (file.path.contains('LTR_')) label = 'CARTA';
-        else if (file.path.contains('LGL_')) label = 'OFICIO';
-        else if (file.path.contains('FRM_') || file.path.contains('Firma_')) label = 'FIRMA';
+        if (file.path.contains('A4_')) {
+          label = 'A4';
+        } else if (file.path.contains('LTR_'))
+          label = 'CARTA';
+        else if (file.path.contains('LGL_'))
+          label = 'OFICIO';
+        else if (file.path.contains('FRM_') || file.path.contains('Firma_'))
+          label = 'FIRMA';
 
         return _HelpBalloon(
-          message: mode == GridMode.signature ? "Toca para gestionar esta firma guardada." : "Toca para seleccionar, mantén presionado para visualizar.",
+          message: mode == GridMode.signature
+              ? "Toca para gestionar esta firma guardada."
+              : "Toca para seleccionar, mantén presionado para visualizar.",
           isEnabled: _isHelpModeEnabled,
           child: GestureDetector(
-            onTap: () => setState(() => isSelected ? _selectedFiles.remove(file.path) : _selectedFiles.add(file.path)),
-            onLongPress: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DocumentViewerScreen(files: [file]))),
+            onTap: () => setState(() => isSelected
+                ? _selectedFiles.remove(file.path)
+                : _selectedFiles.add(file.path)),
+            onLongPress: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => DocumentViewerScreen(files: [file]))),
             child: Container(
               decoration: BoxDecoration(
-                color: isSelected ? Colors.deepPurpleAccent.withOpacity(0.1) : (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03)),
+                color: isSelected
+                    ? Colors.deepPurpleAccent.withOpacity(0.1)
+                    : (isDark
+                        ? Colors.white.withOpacity(0.05)
+                        : Colors.black.withOpacity(0.03)),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: isSelected ? Colors.deepPurpleAccent : Colors.transparent, width: 2),
+                border: Border.all(
+                    color: isSelected
+                        ? Colors.deepPurpleAccent
+                        : Colors.transparent,
+                    width: 2),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: Stack(children: [
-                  Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Expanded(
-                      child: Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: (mode == GridMode.signature) 
-                              ? Colors.white 
-                              : (isDark ? Colors.black26 : Colors.white24),
-                          borderRadius: BorderRadius.circular(12),
+                  Center(
+                      child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                        Expanded(
+                          child: Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: (mode == GridMode.signature)
+                                  ? Colors.white
+                                  : (isDark ? Colors.black26 : Colors.white24),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: isPdf
+                                ? _PdfThumbnail(file: file)
+                                : (file.path.toLowerCase().endsWith('.jpg') ||
+                                        file.path.toLowerCase().endsWith('.png')
+                                    ? Image.file(file,
+                                        fit: (mode == GridMode.signature
+                                            ? BoxFit.contain
+                                            : BoxFit.cover))
+                                    : Icon(Icons.description,
+                                        size: 40, color: Colors.blueAccent)),
+                          ),
                         ),
-                        child: isPdf 
-                          ? _PdfThumbnail(file: file)
-                          : (file.path.toLowerCase().endsWith('.jpg') || file.path.toLowerCase().endsWith('.png') 
-                              ? Image.file(file, fit: (mode == GridMode.signature ? BoxFit.contain : BoxFit.cover)) 
-                              : Icon(Icons.description, size: 40, color: Colors.blueAccent)),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 12), 
-                      child: Text(
-                        file.path.split(Platform.pathSeparator).last.replaceFirst(RegExp(r'^(A4_|LTR_|LGL_|FRM_|Firma_)'), ''), 
-                        maxLines: 1, 
-                        overflow: TextOverflow.ellipsis, 
-                        style: GoogleFonts.outfit(fontSize: 10, color: textColor)
-                      )
-                    ),
-                  ])),
-                  Positioned(top: 8, left: 8, child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.deepPurpleAccent.withOpacity(0.9), borderRadius: BorderRadius.circular(6)), child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)))),
-                  if (isPdf)
-                    Positioned(top: 8, right: 8, child: FutureBuilder<int>(
-                      future: _getPageCount(file),
-                      builder: (context, snapshot) => Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(6)),
-                        child: Text('${snapshot.data ?? "?"}', style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
-                      ),
-                    )),
+                        Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                            child: Text(
+                                file.path
+                                    .split(Platform.pathSeparator)
+                                    .last
+                                    .replaceFirst(
+                                        RegExp(r'^(A4_|LTR_|LGL_|FRM_|Firma_)'),
+                                        ''),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.outfit(
+                                    fontSize: 10, color: textColor))),
+                      ])),
                   Positioned(
-                    top: 8, left: 0, right: 0,
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                              color: Colors.deepPurpleAccent.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(6)),
+                          child: Text(label,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold)))),
+                  if (isPdf)
+                    Positioned(
+                        top: 8,
+                        right: 8,
+                        child: FutureBuilder<int>(
+                          future: _getPageCount(file),
+                          builder: (context, snapshot) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(6)),
+                            child: Text('${snapshot.data ?? "?"}',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                        )),
+                  Positioned(
+                    top: 8,
+                    left: 0,
+                    right: 0,
                     child: Center(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: (isPdf ? Colors.redAccent : Colors.blueAccent).withOpacity(0.8),
+                          color: (isPdf ? Colors.redAccent : Colors.blueAccent)
+                              .withOpacity(0.8),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(isPdf ? "PDF" : "IMG", style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                        child: Text(isPdf ? "PDF" : "IMG",
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ),
@@ -984,9 +1266,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         onTap: _handleCaptureAction,
         child: Container(
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
+            color: isDark
+                ? Colors.white.withOpacity(0.05)
+                : Colors.black.withOpacity(0.03),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.2), width: 2),
+            border: Border.all(
+                color: Colors.deepPurpleAccent.withOpacity(0.2), width: 2),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -999,7 +1284,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     color: Colors.deepPurpleAccent.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.camera_enhance_rounded, size: 48, color: Colors.deepPurpleAccent.withOpacity(0.7)),
+                  child: Icon(Icons.camera_enhance_rounded,
+                      size: 48,
+                      color: Colors.deepPurpleAccent.withOpacity(0.7)),
                 ),
               ),
               Padding(
@@ -1008,7 +1295,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   "Capturar documento",
                   textAlign: TextAlign.center,
                   maxLines: 1,
-                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.deepPurpleAccent),
+                  style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurpleAccent),
                 ),
               ),
             ],
@@ -1025,14 +1315,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       isEnabled: _isHelpModeEnabled,
       child: GestureDetector(
         onTap: () async {
-          final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const SignatureScreen()));
+          final result = await Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const SignatureScreen()));
           if (result == true) _loadGallery();
         },
         child: Container(
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
+            color: isDark
+                ? Colors.white.withOpacity(0.05)
+                : Colors.black.withOpacity(0.03),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.orangeAccent.withOpacity(0.2), width: 2),
+            border: Border.all(
+                color: Colors.orangeAccent.withOpacity(0.2), width: 2),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1045,7 +1339,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     color: Colors.orangeAccent.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.gesture_rounded, size: 48, color: Colors.orangeAccent.withOpacity(0.7)),
+                  child: Icon(Icons.gesture_rounded,
+                      size: 48, color: Colors.orangeAccent.withOpacity(0.7)),
                 ),
               ),
               Padding(
@@ -1054,7 +1349,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   "Capturar firma",
                   textAlign: TextAlign.center,
                   maxLines: 1,
-                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.orangeAccent),
+                  style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orangeAccent),
                 ),
               ),
             ],
@@ -1069,57 +1367,86 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10, offset: const Offset(0, -2))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black26,
+              blurRadius: 10,
+              offset: const Offset(0, -2))
+        ],
       ),
       child: SafeArea(
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _actionBtn(Icons.visibility, "Ver", () {
-              final filesToView = _selectedFiles.map((path) => File(path)).toList();
-              Navigator.push(context, MaterialPageRoute(builder: (_) => DocumentViewerScreen(files: filesToView)));
+              final filesToView =
+                  _selectedFiles.map((path) => File(path)).toList();
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          DocumentViewerScreen(files: filesToView)));
               setState(() => _selectedFiles.clear());
-            }, "Visualiza el contenido de los documentos seleccionados.", color: Colors.blue),
-            
+            }, "Visualiza el contenido de los documentos seleccionados.",
+                color: Colors.blue),
             _actionBtn(Icons.history_edu, "Firmar", () {
               final filePath = _selectedFiles.first;
-              if (_selectedFiles.length == 1 && filePath.toLowerCase().endsWith('.pdf')) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => PdfSignatureScreen(pdfFile: File(filePath))))
-                  .then((result) {
-                    if (result == true) _loadGallery();
-                    setState(() => _selectedFiles.clear());
-                  });
+              if (_selectedFiles.length == 1 &&
+                  filePath.toLowerCase().endsWith('.pdf')) {
+                Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                PdfSignatureScreen(pdfFile: File(filePath))))
+                    .then((result) {
+                  if (result == true) _loadGallery();
+                  setState(() => _selectedFiles.clear());
+                });
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona exactamente un PDF para firmar')));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content:
+                        Text('Selecciona exactamente un PDF para firmar')));
               }
-            }, "Abre el editor para colocar una firma en el PDF seleccionado.", color: Colors.green),
-
+            }, "Abre el editor para colocar una firma en el PDF seleccionado.",
+                color: Colors.green),
             _actionBtn(Icons.delete, "Borrar", () {
-              final filesToDelete = _selectedFiles.map((path) => File(path)).toList();
+              final filesToDelete =
+                  _selectedFiles.map((path) => File(path)).toList();
               _showDeleteDialog(filesToDelete);
-            }, "Elimina permanentemente los archivos seleccionados.", color: Colors.redAccent),
-
+            }, "Elimina permanentemente los archivos seleccionados.",
+                color: Colors.redAccent),
             _actionBtn(Icons.share, "Compartir", () {
-              for (var path in _selectedFiles) _scanner.shareFile(path);
+              for (var path in _selectedFiles) {
+                _scanner.shareFile(path);
+              }
               setState(() => _selectedFiles.clear());
-            }, "Envía los archivos seleccionados a otras aplicaciones.", color: Colors.indigo),
-
+            }, "Envía los archivos seleccionados a otras aplicaciones.",
+                color: Colors.indigo),
             _actionBtn(Icons.edit, "Nombre", () {
               if (_selectedFiles.length == 1) {
                 _showRenameDialog(File(_selectedFiles.first));
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona solo un archivo para renombrar')));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content:
+                        Text('Selecciona solo un archivo para renombrar')));
               }
-            }, "Permite cambiar el nombre del archivo seleccionado.", color: Colors.orange),
-
-            _actionBtn(Icons.close, "", () => setState(() => _selectedFiles.clear()), "Anula la selección actual y cierra este menú.", color: Colors.blueGrey),
+            }, "Permite cambiar el nombre del archivo seleccionado.",
+                color: Colors.orange),
+            _actionBtn(
+                Icons.close,
+                "",
+                () => setState(() => _selectedFiles.clear()),
+                "Anula la selección actual y cierra este menú.",
+                color: Colors.blueGrey),
           ],
         ),
       ),
     );
   }
 
-  Widget _actionBtn(IconData icon, String label, VoidCallback? onTap, String helpText, {Color color = Colors.deepPurpleAccent}) {
+  Widget _actionBtn(
+      IconData icon, String label, VoidCallback? onTap, String helpText,
+      {Color color = Colors.deepPurpleAccent}) {
     return _HelpBalloon(
       message: helpText,
       isEnabled: _isHelpModeEnabled,
@@ -1131,13 +1458,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             Icon(icon, color: onTap == null ? Colors.grey : color, size: 24),
             if (label.isNotEmpty) ...[
               const SizedBox(height: 4),
-              Text(label, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: onTap == null ? Colors.grey : color)),
+              Text(label,
+                  style: GoogleFonts.outfit(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: onTap == null ? Colors.grey : color)),
             ],
           ],
         ),
       ),
     );
   }
+
   Widget _PdfThumbnail({required File file}) {
     if (_thumbnailCache.containsKey(file.path)) {
       return RawImage(image: _thumbnailCache[file.path]!, fit: BoxFit.cover);
@@ -1150,7 +1482,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           if (doc.pages.isEmpty) return null;
           final page = doc.pages.first;
           final pdfImg = await page.render(
-            width: 150, 
+            width: 150,
             height: 200,
             fullWidth: 150.0,
             fullHeight: 200.0,
@@ -1163,7 +1495,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       }(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.done && snapshot.hasData && snapshot.data != null) {
+        if (snapshot.connectionState == ConnectionState.done &&
+            snapshot.hasData &&
+            snapshot.data != null) {
           return RawImage(
             image: snapshot.data!,
             fit: BoxFit.cover,
@@ -1172,7 +1506,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(strokeWidth: 1));
         }
-        return const Center(child: Icon(Icons.picture_as_pdf, color: Colors.redAccent, size: 24));
+        return const Center(
+            child:
+                Icon(Icons.picture_as_pdf, color: Colors.redAccent, size: 24));
       },
     );
   }
@@ -1200,12 +1536,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         onWillPop: () async => false,
         child: AlertDialog(
           backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
             children: [
               const Icon(Icons.system_update, color: Colors.amber),
               const SizedBox(width: 10),
-              Text("Actualización Obligatoria", style: GoogleFonts.outfit(color: Colors.white)),
+              Text("Actualización Obligatoria",
+                  style: GoogleFonts.outfit(color: Colors.white)),
             ],
           ),
           content: Text(
@@ -1217,7 +1555,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               onPressed: () {
                 // Aquí podrías abrir la URL de la tienda
               },
-              child: const Text("IR A LA TIENDA", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+              child: const Text("IR A LA TIENDA",
+                  style: TextStyle(
+                      color: Colors.amber, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -1234,8 +1574,8 @@ class _HelpBalloon extends StatelessWidget {
   final Alignment balloonAlignment;
 
   const _HelpBalloon({
-    required this.child, 
-    required this.message, 
+    required this.child,
+    required this.message,
     required this.isEnabled,
     this.balloonAlignment = Alignment.topRight,
   });
@@ -1254,17 +1594,23 @@ class _HelpBalloon extends StatelessWidget {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15)),
                     content: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.info_outline, color: Colors.amber, size: 40),
+                        const Icon(Icons.info_outline,
+                            color: Colors.amber, size: 40),
                         const SizedBox(height: 16),
-                        Text(message, textAlign: TextAlign.center, style: GoogleFonts.outfit(fontSize: 14)),
+                        Text(message,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.outfit(fontSize: 14)),
                       ],
                     ),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(context), child: const Text("Entendido"))
+                      TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text("Entendido"))
                     ],
                   ),
                 );

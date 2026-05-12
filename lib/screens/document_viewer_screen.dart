@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:photo_view/photo_view.dart';
-import 'package:photo_view/photo_view_gallery.dart';
 import 'package:share_plus/share_plus.dart';
 
 class DocumentViewerScreen extends StatefulWidget {
@@ -92,7 +91,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
               ),
             );
           } else {
-            final isSignature = file.path.contains('Firma_');
+            final isSignature = file.path.contains('Firma_') || file.path.contains('FRM_');
             return PhotoView(
               imageProvider: FileImage(file),
               backgroundDecoration: BoxDecoration(color: isSignature ? Colors.white : Colors.black),

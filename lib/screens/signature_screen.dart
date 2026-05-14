@@ -11,6 +11,8 @@ import '../services/credit_service.dart';
 import '../services/signature_capture_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'signature_preview_screen.dart';
+import '../widgets/custom_app_bar.dart';
+import '../widgets/help_balloon.dart';
 
 class SignatureScreen extends StatefulWidget {
   const SignatureScreen({super.key});
@@ -267,7 +269,7 @@ class _SignatureScreenState extends State<SignatureScreen> {
     final lang = settings.localeCode;
 
     return Scaffold(
-      appBar: AppBar(title: Text(LocalizationService.translate('sig_capture', lang))),
+      appBar: const FirmAppAppBar(showSettings: false),
       body: Stack(
         children: [
           Column(
@@ -297,19 +299,27 @@ class _SignatureScreenState extends State<SignatureScreen> {
   }
 
   Widget _buildSignatureCanvas() {
+    final isHelpModeEnabled =
+        context.watch<SettingsService>().isHelpModeEnabled;
+
     return Expanded(
-      child: Container(
-        margin: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.deepPurpleAccent, width: 2),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Signature(
-            controller: _controller,
-            backgroundColor: Colors.white,
+      child: HelpBalloon(
+        message: "Dibuja tu firma aquí con el dedo o un lápiz táctil.",
+        isEnabled: isHelpModeEnabled,
+        balloonAlignment: Alignment.topLeft,
+        child: Container(
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.deepPurpleAccent, width: 2),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Signature(
+              controller: _controller,
+              backgroundColor: Colors.white,
+            ),
           ),
         ),
       ),
@@ -317,34 +327,64 @@ class _SignatureScreenState extends State<SignatureScreen> {
   }
 
   Widget _buildCanvasActions(String lang) {
+    final isHelpModeEnabled =
+        context.watch<SettingsService>().isHelpModeEnabled;
+
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Row(
         children: [
-          IconButton(
-            onPressed: () => setState(() => _rotationTurns = (_rotationTurns + 1) % 4),
-            icon: const Icon(Icons.rotate_right, color: Colors.deepPurpleAccent),
-            tooltip: 'Rotar firma final',
+          Expanded(
+            child: HelpBalloon(
+              message: "Rota la firma 90 grados a la derecha.",
+              isEnabled: isHelpModeEnabled,
+              child: ElevatedButton.icon(
+                onPressed: () =>
+                    setState(() => _rotationTurns = (_rotationTurns + 1) % 4),
+                icon: const Icon(Icons.rotate_right, size: 18),
+                label: const FittedBox(child: Text("Rotar")),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.indigo,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () {
-                _controller.clear();
-                setState(() => _rotationTurns = 0);
-              },
-              icon: const Icon(Icons.clear),
-              label: FittedBox(child: Text(LocalizationService.translate('sig_clear', lang))),
-              style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+            child: HelpBalloon(
+              message: "Borra el trazo actual para empezar de nuevo.",
+              isEnabled: isHelpModeEnabled,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  _controller.clear();
+                  setState(() => _rotationTurns = 0);
+                },
+                icon: const Icon(Icons.clear, size: 18),
+                label: FittedBox(
+                    child: Text(LocalizationService.translate('sig_clear', lang))),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _saveCanvas,
-              icon: const Icon(Icons.check),
-              label: FittedBox(child: Text(LocalizationService.translate('sig_save', lang))),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade800),
+            child: HelpBalloon(
+              message: "Guarda la firma dibujada en tu galería local.",
+              isEnabled: isHelpModeEnabled,
+              child: ElevatedButton.icon(
+                onPressed: _saveCanvas,
+                icon: const Icon(Icons.check, size: 18),
+                label: FittedBox(
+                    child: Text(LocalizationService.translate('sig_save', lang))),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade700,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
             ),
           ),
         ],
@@ -353,32 +393,46 @@ class _SignatureScreenState extends State<SignatureScreen> {
   }
 
   Widget _buildExternalSourceActions(String lang) {
+    final isHelpModeEnabled =
+        context.watch<SettingsService>().isHelpModeEnabled;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Row(
         children: [
           Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _takePhoto,
-              icon: const Icon(Icons.camera_alt),
-              label: Text(LocalizationService.translate('sig_photo_btn', lang)),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 54),
-                backgroundColor: Colors.deepPurpleAccent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: HelpBalloon(
+              message: "Toma una foto de una firma en papel.",
+              isEnabled: isHelpModeEnabled,
+              child: ElevatedButton.icon(
+                onPressed: _takePhoto,
+                icon: const Icon(Icons.camera_alt),
+                label:
+                    Text(LocalizationService.translate('sig_photo_btn', lang)),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 54),
+                  backgroundColor: Colors.deepPurpleAccent,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
               ),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _importPhoto,
-              icon: const Icon(Icons.image),
-              label: Text(LocalizationService.translate('import_sig', lang)),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 54),
-                backgroundColor: Colors.deepPurple,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: HelpBalloon(
+              message: "Importa una imagen de firma desde tu galería.",
+              isEnabled: isHelpModeEnabled,
+              child: ElevatedButton.icon(
+                onPressed: _importPhoto,
+                icon: const Icon(Icons.image),
+                label: Text(LocalizationService.translate('import_sig', lang)),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 54),
+                  backgroundColor: Colors.deepPurple,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
               ),
             ),
           ),

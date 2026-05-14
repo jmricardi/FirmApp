@@ -3,14 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:share_plus/share_plus.dart';
+import '../widgets/custom_app_bar.dart';
 
 class DocumentViewerScreen extends StatefulWidget {
   final List<File> files;
   final int initialIndex;
 
   const DocumentViewerScreen({
-    super.key, 
-    required this.files, 
+    super.key,
+    required this.files,
     this.initialIndex = 0,
   });
 
@@ -36,7 +37,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     if (widget.files.isEmpty) {
       return Scaffold(
         backgroundColor: Colors.black,
-        appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+        appBar: const FirmAppAppBar(showActions: false),
         body: const Center(
           child: Text(
             "No hay documentos para visualizar",
@@ -48,27 +49,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black.withOpacity(0.5),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _currentIndex < widget.files.length 
-                ? widget.files[_currentIndex].path.split(Platform.pathSeparator).last
-                : "Cargando...",
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (widget.files.length > 1)
-              Text(
-                '${_currentIndex + 1} de ${widget.files.length}',
-                style: const TextStyle(color: Colors.white70, fontSize: 10),
-              ),
-          ],
-        ),
+      appBar: FirmAppAppBar(
+        showActions: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.share, color: Colors.white),
@@ -91,7 +73,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
               ),
             );
           } else {
-            final isSignature = file.path.contains('Firma_') || file.path.contains('FRM_');
+            final isSignature = file.path.contains('FRM_');
             return PhotoView(
               imageProvider: FileImage(file),
               backgroundDecoration: BoxDecoration(color: isSignature ? Colors.white : Colors.black),

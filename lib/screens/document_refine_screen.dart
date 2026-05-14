@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:pdf/pdf.dart';
+import '../widgets/custom_app_bar.dart';
 
 class DocumentRefineScreen extends StatefulWidget {
   final String imagePath;
@@ -151,10 +152,7 @@ class _DocumentRefineScreenState extends State<DocumentRefineScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text('Ajustar Documento'),
-        backgroundColor: Colors.transparent,
-      ),
+      appBar: const FirmAppAppBar(showSettings: false),
       body: Column(
         children: [
           Expanded(

@@ -5,6 +5,8 @@ import '../services/settings_service.dart';
 import '../services/localization_service.dart';
 import '../services/auth_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../widgets/custom_app_bar.dart';
+import '../widgets/help_balloon.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -13,26 +15,27 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsService>();
     final lang = settings.localeCode;
+    final isHelpModeEnabled = settings.isHelpModeEnabled;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          LocalizationService.translate('settings', lang),
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
-        ),
-      ),
+      appBar: const FirmAppAppBar(showSettings: false),
       body: ListView(
         children: [
           _buildSectionTitle(
               LocalizationService.translate('theme_title', lang)),
-          ListTile(
-            leading: const Icon(Icons.brightness_6_outlined),
-            title: Text(LocalizationService.translate('theme_dark', lang)),
-            trailing: Switch(
-              value: settings.themeMode == ThemeMode.dark,
-              onChanged: (val) =>
-                  settings.setThemeMode(val ? ThemeMode.dark : ThemeMode.light),
-              activeThumbColor: Colors.deepPurpleAccent,
+          HelpBalloon(
+            message: "Cambia entre el modo claro y oscuro de la aplicación.",
+            isEnabled: isHelpModeEnabled,
+            balloonAlignment: Alignment.topRight,
+            child: ListTile(
+              leading: const Icon(Icons.brightness_6_outlined),
+              title: Text(LocalizationService.translate('theme_dark', lang)),
+              trailing: Switch(
+                value: settings.themeMode == ThemeMode.dark,
+                onChanged: (val) =>
+                    settings.setThemeMode(val ? ThemeMode.dark : ThemeMode.light),
+                activeThumbColor: Colors.deepPurpleAccent,
+              ),
             ),
           ),
           _buildSectionTitle(
@@ -55,18 +58,6 @@ class SettingsScreen extends StatelessWidget {
               groupValue: lang,
               onChanged: (val) => settings.setLocale(val!),
               activeColor: Colors.deepPurpleAccent,
-            ),
-          ),
-          _buildSectionTitle(
-              LocalizationService.translate('quality_filter', lang)),
-          ListTile(
-            leading: const Icon(Icons.high_quality_rounded),
-            title: Text(LocalizationService.translate('quality_filter', lang)),
-            subtitle: Text(LocalizationService.translate('quality_desc', lang)),
-            trailing: Switch(
-              value: settings.isQualityFilterEnabled,
-              onChanged: (val) => settings.toggleQualityFilter(val),
-              activeThumbColor: Colors.deepPurpleAccent,
             ),
           ),
           _buildSectionTitle(

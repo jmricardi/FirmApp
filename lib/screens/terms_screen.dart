@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/settings_service.dart';
 import '../services/localization_service.dart';
+import '../widgets/custom_app_bar.dart';
 
 class TermsScreen extends StatelessWidget {
   const TermsScreen({super.key});
@@ -12,7 +13,7 @@ class TermsScreen extends StatelessWidget {
     final lang = settings.localeCode;
 
     return Scaffold(
-      appBar: AppBar(title: Text(LocalizationService.translate('terms_title', lang))),
+      appBar: const FirmAppAppBar(showActions: false),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(

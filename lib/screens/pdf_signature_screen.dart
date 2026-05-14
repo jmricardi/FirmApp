@@ -9,7 +9,10 @@ import 'package:provider/provider.dart';
 import 'package:path_provider/path_provider.dart';
 import '../services/signature_service.dart';
 import '../services/credit_service.dart';
+import '../services/settings_service.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/custom_app_bar.dart';
+import '../widgets/help_balloon.dart';
 
 class SignatureStamp {
   final File signatureFile;
@@ -144,6 +147,8 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
             _pdfPageSize = Size(page.width, page.height);
             _currentPageIndex = index;
             _transformationController.value = Matrix4.identity();
+            // Centrar la firma inicial
+            _currentSigPosInPoints = Offset(page.width / 2 - _currentSigWidthInPoints / 2, page.height / 2 - _currentSigHeightInPoints / 2);
           });
         }
         pageImage.dispose();
@@ -380,13 +385,18 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-      appBar: AppBar(title: const Text('Firmar Documento')),
-      body: Column(children: [
+      appBar: const FirmAppAppBar(showSettings: false),
+      body: Builder(builder: (context) {
+        final isHelpModeEnabled = context.watch<SettingsService>().isHelpModeEnabled;
+        return Column(children: [
         Container(
           padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
           color: Colors.black,
-          child: Row(children: [
-            // Texto TINTA más compacto o removido si es necesario
+          child: HelpBalloon(
+            message: "Selecciona el color de tinta para tu firma.",
+            isEnabled: isHelpModeEnabled,
+            balloonAlignment: Alignment.topLeft,
+            child: Row(children: [
             const Text('INK:',
                 style: TextStyle(
                     color: Colors.white70,
@@ -408,28 +418,38 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            Text('${_currentPageIndex + 1} / $_totalPages',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold)),
-            IconButton(
-                constraints: const BoxConstraints(maxWidth: 32),
-                padding: EdgeInsets.zero,
-                icon: const Icon(Icons.chevron_left,
-                    color: Colors.white, size: 20),
-                onPressed: _currentPageIndex > 0
-                    ? () => _loadPage(_currentPageIndex - 1)
-                    : null),
-            IconButton(
-                constraints: const BoxConstraints(maxWidth: 32),
-                padding: EdgeInsets.zero,
-                icon: const Icon(Icons.chevron_right,
-                    color: Colors.white, size: 20),
-                onPressed: _currentPageIndex < _totalPages - 1
-                    ? () => _loadPage(_currentPageIndex + 1)
-                    : null),
+            HelpBalloon(
+              message: "Navega entre las páginas del documento con las flechas.",
+              isEnabled: isHelpModeEnabled,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${_currentPageIndex + 1} / $_totalPages',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold)),
+                  IconButton(
+                      constraints: const BoxConstraints(maxWidth: 32),
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.chevron_left,
+                          color: Colors.white, size: 20),
+                      onPressed: _currentPageIndex > 0
+                          ? () => _loadPage(_currentPageIndex - 1)
+                          : null),
+                  IconButton(
+                      constraints: const BoxConstraints(maxWidth: 32),
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.chevron_right,
+                          color: Colors.white, size: 20),
+                      onPressed: _currentPageIndex < _totalPages - 1
+                          ? () => _loadPage(_currentPageIndex + 1)
+                          : null),
+                ],
+              ),
+            ),
           ]),
+          ),
         ),
 
         // Selector de Calidad (DPI)
@@ -440,7 +460,11 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
             border: Border(
                 bottom: BorderSide(color: Colors.white.withOpacity(0.1))),
           ),
-          child: Row(
+          child: HelpBalloon(
+            message: "Define la calidad de exportación del documento. Mayor calidad = archivo más pesado.",
+            isEnabled: isHelpModeEnabled,
+            balloonAlignment: Alignment.topLeft,
+            child: Row(
             children: [
               const Text('CALIDAD:',
                   style: TextStyle(
@@ -452,6 +476,7 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
               _qualityBtn("MEDIA", 250.0),
               _qualityBtn("ALTA", 350.0),
             ],
+          ),
           ),
         ),
 
@@ -468,7 +493,11 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
 
           return Stack(
             children: [
-              InteractiveViewer(
+              HelpBalloon(
+                message: "Arrastra la firma para posicionarla. Pellizca para hacer zoom en el documento.",
+                isEnabled: isHelpModeEnabled,
+                balloonAlignment: Alignment.topLeft,
+                child: InteractiveViewer(
                 transformationController: _transformationController,
                 maxScale: 10.0,
                 minScale: 1.0,
@@ -558,55 +587,11 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
                           ),
                         ),
 
-                      // MARCADOR DE ORIGEN (0,0) REAL DEL PDF
-                      Positioned(
-                        left: 0,
-                        top: 0,
-                        child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                                border:
-                                    Border.all(color: Colors.white, width: 1))),
-                      ),
 
-                      // PANEL DE TELEMETRÍA INTERNO
-                      Positioned(
-                        top: 5,
-                        right: 5,
-                        child: IgnorePointer(
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(4)),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                    "PDF X: ${_currentSigPosInPoints.dx.toStringAsFixed(1)}",
-                                    style: const TextStyle(
-                                        color: Colors.greenAccent,
-                                        fontSize: 8)),
-                                Text(
-                                    "PDF Y: ${_currentSigPosInPoints.dy.toStringAsFixed(1)}",
-                                    style: const TextStyle(
-                                        color: Colors.greenAccent,
-                                        fontSize: 8)),
-                                Text(
-                                    "PAGE: ${_pdfPageSize?.width.toInt()}x${_pdfPageSize?.height.toInt()}",
-                                    style: const TextStyle(
-                                        color: Colors.white, fontSize: 7)),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
                     ]),
                   ),
                 ),
+              ),
               ),
             ],
           );
@@ -622,121 +607,142 @@ class _PdfSignatureScreenState extends State<PdfSignatureScreen> {
               children: [
                 Row(children: [
                   // Controles de tamaño compactos
-                  Container(
-                    decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(12)),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                            icon: const Icon(Icons.remove,
-                                color: Colors.white, size: 18),
-                            onPressed: () => setState(() {
-                                  _currentSigWidthInPoints *= 0.9;
-                                  _currentSigHeightInPoints =
-                                      _currentSigWidthInPoints /
-                                          _currentSigAspectRatio;
-                                })),
-                        const Text('TAMAÑO',
-                            style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold)),
-                        IconButton(
-                            icon: const Icon(Icons.add,
-                                color: Colors.white, size: 18),
-                            onPressed: () => setState(() {
-                                  _currentSigWidthInPoints *= 1.1;
-                                  _currentSigHeightInPoints =
-                                      _currentSigWidthInPoints /
-                                          _currentSigAspectRatio;
-                                })),
-                      ],
+                  HelpBalloon(
+                    message: "Ajusta el tamaño de la firma con los botones + y -.",
+                    isEnabled: isHelpModeEnabled,
+                    child: Container(
+                      decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                              icon: const Icon(Icons.remove,
+                                  color: Colors.white, size: 18),
+                              onPressed: () => setState(() {
+                                    _currentSigWidthInPoints *= 0.9;
+                                    _currentSigHeightInPoints =
+                                        _currentSigWidthInPoints /
+                                            _currentSigAspectRatio;
+                                  })),
+                          const Text('TAMAÑO',
+                              style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold)),
+                          IconButton(
+                              icon: const Icon(Icons.add,
+                                  color: Colors.white, size: 18),
+                              onPressed: () => setState(() {
+                                    _currentSigWidthInPoints *= 1.1;
+                                    _currentSigHeightInPoints =
+                                        _currentSigWidthInPoints /
+                                            _currentSigAspectRatio;
+                                  })),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   // Botón Deshacer con marco
-                  OutlinedButton(
-                    onPressed: (_stamps[_currentPageIndex]?.isNotEmpty ?? false)
-                        ? _undoLastStamp
-                        : null,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.amberAccent,
-                      side: const BorderSide(
-                          color: Colors.amberAccent, width: 1.5),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                  HelpBalloon(
+                    message: "Deshace la última firma incrustada en esta página.",
+                    isEnabled: isHelpModeEnabled,
+                    child: OutlinedButton(
+                      onPressed: (_stamps[_currentPageIndex]?.isNotEmpty ?? false)
+                          ? _undoLastStamp
+                          : null,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.amberAccent,
+                        side: const BorderSide(
+                            color: Colors.amberAccent, width: 1.5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Icon(Icons.undo, size: 20),
                     ),
-                    child: const Icon(Icons.undo, size: 20),
                   ),
                   const SizedBox(width: 8),
                   // Botón Firmar (reemplaza Incrustar)
                   Expanded(
-                    child: ElevatedButton.icon(
-                        onPressed: _addStamp,
-                        icon: const Icon(Icons.history_edu, size: 18),
-                        label: const Text('FIRMAR',
-                            style: TextStyle(
-                                fontSize: 11, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurpleAccent,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)))),
+                    child: HelpBalloon(
+                      message: "Incrusta la firma seleccionada en la posición actual del documento.",
+                      isEnabled: isHelpModeEnabled,
+                      child: ElevatedButton.icon(
+                          onPressed: _addStamp,
+                          icon: const Icon(Icons.history_edu, size: 18),
+                          label: const Text('FIRMAR',
+                              style: TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepPurpleAccent,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)))),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   // Botón Guardar Final
                   Expanded(
-                    child: ElevatedButton.icon(
-                        onPressed: _saveFinalPdf,
-                        icon: const Icon(Icons.save, size: 16),
-                        label: const Text('GUARDAR',
-                            style: TextStyle(
-                                fontSize: 11, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade700,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)))),
+                    child: HelpBalloon(
+                      message: "Guarda el documento firmado como un nuevo archivo PDF.",
+                      isEnabled: isHelpModeEnabled,
+                      child: ElevatedButton.icon(
+                          onPressed: _saveFinalPdf,
+                          icon: const Icon(Icons.save, size: 16),
+                          label: const Text('GUARDAR',
+                              style: TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green.shade700,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)))),
+                    ),
                   ),
                 ]),
                 const SizedBox(height: 16),
-                SizedBox(
-                    height: 80,
-                    child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _availableSignatures.length,
-                        itemBuilder: (context, index) {
-                          final sig = _availableSignatures[index];
-                          final isSelected =
-                              _selectedSignature?.path == sig.path;
-                          return GestureDetector(
-                              onTap: () => _selectSignature(sig),
-                              child: Container(
-                                  width: 100,
-                                  margin: const EdgeInsets.only(right: 12),
-                                  decoration: BoxDecoration(
-                                      color:
-                                          Colors.white, // FONDO BLANCO SOLIDO
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                          color: isSelected
-                                              ? Colors.deepPurpleAccent
-                                              : Colors.transparent,
-                                          width: 2)),
-                                  child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
-                                      child:
-                                          Image.file(sig, fit: BoxFit.fill))));
-                        })),
+                HelpBalloon(
+                  message: "Toca una firma para seleccionarla. Luego arrástrala sobre el documento para posicionarla.",
+                  isEnabled: isHelpModeEnabled,
+                  child: SizedBox(
+                      height: 80,
+                      child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _availableSignatures.length,
+                          itemBuilder: (context, index) {
+                            final sig = _availableSignatures[index];
+                            final isSelected =
+                                _selectedSignature?.path == sig.path;
+                            return GestureDetector(
+                                onTap: () => _selectSignature(sig),
+                                child: Container(
+                                    width: 100,
+                                    margin: const EdgeInsets.only(right: 12),
+                                    decoration: BoxDecoration(
+                                        color:
+                                            Colors.white, // FONDO BLANCO SOLIDO
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                            color: isSelected
+                                                ? Colors.deepPurpleAccent
+                                                : Colors.transparent,
+                                            width: 2)),
+                                    child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child:
+                                            Image.file(sig, fit: BoxFit.fill))));
+                          })),
+                ),
               ],
             ),
           ),
         ),
-      ]),
+      ]);
+      }),
     );
   }
 

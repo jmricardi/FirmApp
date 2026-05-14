@@ -16,9 +16,12 @@ import '../services/localization_service.dart';
 import '../services/settings_service.dart';
 import 'signature_screen.dart';
 import 'pdf_signature_screen.dart';
+import 'pdf_fill_screen.dart';
 import 'document_viewer_screen.dart';
 import 'document_refine_screen.dart';
 import '../services/remote_config_service.dart';
+import '../widgets/custom_app_bar.dart';
+import '../widgets/help_balloon.dart';
 import 'package:share_plus/share_plus.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -41,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isProcessing = false;
   final Map<String, int> _pageCountCache = {};
   final Map<String, ui.Image> _thumbnailCache = {};
-  bool _isHelpModeEnabled = false;
+  // _isHelpModeEnabled movido a SettingsService
   bool _welcomeDialogShown =
       false; // Flag para evitar duplicación del diálogo de bienvenida
 
@@ -282,8 +285,7 @@ class _HomeScreenState extends State<HomeScreen>
     final creditService = context.read<CreditService>();
 
     try {
-      final images = await _scanner.captureDocuments(
-          checkQuality: settings.isQualityFilterEnabled);
+      final images = await _scanner.captureDocuments();
 
       if (images != null && images.isNotEmpty) {
         setState(() => _isProcessing = true);
@@ -449,34 +451,7 @@ class _HomeScreenState extends State<HomeScreen>
           List<String> refinedImages = []; // Declaración añadida
           PdfPageFormat? finalFormat; // Declaración añadida
 
-          final settings = context.read<SettingsService>();
-          if (settings.isQualityFilterEnabled) {
-            final isGood = await _scanner.checkImageQuality(path);
-            if (!isGood) {
-              setState(() => _isProcessing = false);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(
-                      children: [
-                        const Icon(Icons.warning_amber_rounded,
-                            color: Colors.white),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                            child: Text(
-                                'La imagen no era útil por no verse bien y fue descartada. Por favor, toma o selecciona otra imagen con más iluminación y estabilidad.')),
-                      ],
-                    ),
-                    backgroundColor: Colors.orangeAccent,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                );
-              }
-              return;
-            }
-          }
+
 
           // Refinamiento Manual para Importación
           final result = await Navigator.push(
@@ -570,7 +545,7 @@ class _HomeScreenState extends State<HomeScreen>
       displayName = rawName.substring(4);
     else if (rawName.startsWith('LGL_'))
       displayName = rawName.substring(4);
-    else if (rawName.startsWith('Firma_')) displayName = rawName.substring(6);
+    else if (rawName.startsWith('FRM_')) displayName = rawName.substring(4);
 
     final controller = TextEditingController(text: displayName);
     showDialog(
@@ -736,6 +711,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<SettingsService>().localeCode;
+    final isHelpModeEnabled = context.watch<SettingsService>().isHelpModeEnabled;
     final creditService = context.watch<CreditService>();
     final adService = context.watch<AdService>();
     final credits = creditService.credits;
@@ -811,49 +787,14 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset('assets/icono.png', height: 32),
-            const SizedBox(width: 10),
-            Text(
-              'FirmApp',
-              style: GoogleFonts.outfit(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          _HelpBalloon(
-            message: "Configura las preferencias de la aplicación y el idioma.",
-            isEnabled: _isHelpModeEnabled,
-            balloonAlignment: Alignment.topLeft,
-            child: IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () {
-                  setState(() => _selectedFiles.clear());
-                  Navigator.pushNamed(context, '/settings');
-                }),
-          ),
-          _HelpBalloon(
-            message: "Cierra tu sesión de forma segura.",
-            isEnabled: _isHelpModeEnabled,
-            balloonAlignment: Alignment.topLeft,
-            child: IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () => context.read<AuthService>().signOut()),
-          ),
-        ],
+      appBar: FirmAppAppBar(
+        onSettingsTap: () => setState(() => _selectedFiles.clear()),
       ),
       body: Stack(
         children: [
           Column(children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
               child: IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -861,15 +802,15 @@ class _HomeScreenState extends State<HomeScreen>
                     // Bloque de Créditos (Principal) - REDUCIDO
                     Expanded(
                       flex: 2,
-                      child: _HelpBalloon(
+                      child: HelpBalloon(
                         message:
                             "Muestra tus créditos disponibles para firmar y procesar documentos.",
-                        isEnabled: _isHelpModeEnabled,
+                        isEnabled: isHelpModeEnabled,
                         child: GestureDetector(
                           onTap: _showHistorySheet,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 8),
+                                horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: Colors.deepPurpleAccent.withOpacity(0.05),
                               borderRadius: BorderRadius.circular(20),
@@ -909,10 +850,10 @@ class _HomeScreenState extends State<HomeScreen>
                     // Botón de Anuncio (+1) - AHORA EN SEGUNDA POSICIÓN
                     Expanded(
                       flex: 2,
-                      child: _HelpBalloon(
+                      child: HelpBalloon(
                         message:
                             "Mira un anuncio corto para ganar 1 crédito gratis.",
-                        isEnabled: _isHelpModeEnabled,
+                        isEnabled: isHelpModeEnabled,
                         child: Material(
                           color: Colors.transparent,
                           child: InkWell(
@@ -940,6 +881,7 @@ class _HomeScreenState extends State<HomeScreen>
                                         ? Colors.green.withOpacity(0.4)
                                         : Colors.grey.withOpacity(0.2)),
                               ),
+                              padding: const EdgeInsets.symmetric(vertical: 4),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -971,10 +913,10 @@ class _HomeScreenState extends State<HomeScreen>
                     // Botón de Recomendación (+5) - AHORA EN TERCERA POSICIÓN
                     Expanded(
                       flex: 2,
-                      child: _HelpBalloon(
+                      child: HelpBalloon(
                         message:
                             "Recomienda la app a un amigo y gana 5 créditos gratis.",
-                        isEnabled: _isHelpModeEnabled,
+                        isEnabled: isHelpModeEnabled,
                         child: Material(
                           color: Colors.transparent,
                           child: InkWell(
@@ -988,6 +930,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 border: Border.all(
                                     color: Colors.blueAccent.withOpacity(0.2)),
                               ),
+                              padding: const EdgeInsets.symmetric(vertical: 4),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -1007,44 +950,6 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Expanded(
-                      flex: 1,
-                      child: _HelpBalloon(
-                        message:
-                            "Activa/Desactiva el modo de ayuda interactiva.",
-                        isEnabled: false,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () => setState(
-                                () => _isHelpModeEnabled = !_isHelpModeEnabled),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: _isHelpModeEnabled
-                                    ? Colors.amber.withOpacity(0.1)
-                                    : Colors.white.withOpacity(0.05),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                    color: _isHelpModeEnabled
-                                        ? Colors.amber
-                                        : Colors.grey.withOpacity(0.5)),
-                              ),
-                              child: Icon(
-                                _isHelpModeEnabled
-                                    ? Icons.help
-                                    : Icons.help_outline,
-                                color: _isHelpModeEnabled
-                                    ? Colors.amber
-                                    : Colors.grey,
-                                size: 22,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -1052,10 +957,10 @@ class _HomeScreenState extends State<HomeScreen>
             Expanded(
               child: Column(
                 children: [
-                  _HelpBalloon(
+                  HelpBalloon(
                     message:
                         "Alterna entre tus documentos PDF y tus firmas guardadas.",
-                    isEnabled: _isHelpModeEnabled,
+                    isEnabled: isHelpModeEnabled,
                     balloonAlignment: Alignment.topLeft,
                     child: TabBar(
                         controller: _tabController,
@@ -1093,15 +998,16 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildDocumentGrid(List<File> docs, GridMode mode) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isHelpModeEnabled = context.watch<SettingsService>().isHelpModeEnabled;
     final textColor = Theme.of(context).colorScheme.onSurface;
 
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
-          childAspectRatio: 0.85),
+          childAspectRatio: 0.95),
       itemCount: docs.length + (mode != GridMode.none ? 1 : 0),
       itemBuilder: (context, index) {
         if (mode != GridMode.none && index == docs.length) {
@@ -1121,14 +1027,14 @@ class _HomeScreenState extends State<HomeScreen>
           label = 'CARTA';
         else if (file.path.contains('LGL_'))
           label = 'OFICIO';
-        else if (file.path.contains('FRM_') || file.path.contains('Firma_'))
+        else if (file.path.contains('FRM_'))
           label = 'FIRMA';
 
-        return _HelpBalloon(
+        return HelpBalloon(
           message: mode == GridMode.signature
               ? "Toca para gestionar esta firma guardada."
               : "Toca para seleccionar, mantén presionado para visualizar.",
-          isEnabled: _isHelpModeEnabled,
+          isEnabled: isHelpModeEnabled,
           child: GestureDetector(
             onTap: () => setState(() => isSelected
                 ? _selectedFiles.remove(file.path)
@@ -1187,7 +1093,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     .split(Platform.pathSeparator)
                                     .last
                                     .replaceFirst(
-                                        RegExp(r'^(A4_|LTR_|LGL_|FRM_|Firma_)'),
+                                        RegExp(r'^(A4_|LTR_|LGL_|FRM_)'),
                                         ''),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -1259,9 +1165,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildAddButton() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return _HelpBalloon(
+    final isHelpModeEnabled = context.watch<SettingsService>().isHelpModeEnabled;
+    return HelpBalloon(
       message: "Usa la cámara o importa un PDF para empezar a trabajar.",
-      isEnabled: _isHelpModeEnabled,
+      isEnabled: isHelpModeEnabled,
       child: GestureDetector(
         onTap: _handleCaptureAction,
         child: Container(
@@ -1310,9 +1217,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildAddSignatureButton() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return _HelpBalloon(
+    final isHelpModeEnabled = context.watch<SettingsService>().isHelpModeEnabled;
+    return HelpBalloon(
       message: "Dibuja una nueva firma para usar en tus documentos.",
-      isEnabled: _isHelpModeEnabled,
+      isEnabled: isHelpModeEnabled,
       child: GestureDetector(
         onTap: () async {
           final result = await Navigator.push(context,
@@ -1363,6 +1271,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildBottomActions(String lang) {
+    final hasSignature = _selectedFiles
+        .any((path) => path.contains('FRM_'));
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -1389,26 +1300,45 @@ class _HomeScreenState extends State<HomeScreen>
               setState(() => _selectedFiles.clear());
             }, "Visualiza el contenido de los documentos seleccionados.",
                 color: Colors.blue),
-            _actionBtn(Icons.history_edu, "Firmar", () {
-              final filePath = _selectedFiles.first;
-              if (_selectedFiles.length == 1 &&
-                  filePath.toLowerCase().endsWith('.pdf')) {
-                Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                PdfSignatureScreen(pdfFile: File(filePath))))
-                    .then((result) {
-                  if (result == true) _loadGallery();
-                  setState(() => _selectedFiles.clear());
-                });
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content:
-                        Text('Selecciona exactamente un PDF para firmar')));
-              }
-            }, "Abre el editor para colocar una firma en el PDF seleccionado.",
-                color: Colors.green),
+            if (!hasSignature)
+              _actionBtn(Icons.history_edu, "Firmar", () {
+                final filePath = _selectedFiles.first;
+                if (_selectedFiles.length == 1 &&
+                    filePath.toLowerCase().endsWith('.pdf')) {
+                  Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  PdfSignatureScreen(pdfFile: File(filePath))))
+                      .then((result) {
+                    if (result == true) _loadGallery();
+                    setState(() => _selectedFiles.clear());
+                  });
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content:
+                          Text('Selecciona exactamente un PDF para firmar')));
+                }
+              }, "Abre el editor para colocar una firma en el PDF seleccionado.",
+                  color: Colors.green),
+            if (!hasSignature)
+              _actionBtn(Icons.text_fields, "Completar", () {
+                if (_selectedFiles.length == 1) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PdfFillScreen(pdfFile: File(_selectedFiles.first)),
+                    ),
+                  ).then((_) {
+                    setState(() => _selectedFiles.clear());
+                    _loadGallery();
+                  });
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Selecciona exactamente un PDF para rellenar')));
+                }
+              }, "Abre el modo formulario para agregar texto al PDF.",
+                  color: Colors.blueAccent),
             _actionBtn(Icons.delete, "Borrar", () {
               final filesToDelete =
                   _selectedFiles.map((path) => File(path)).toList();
@@ -1447,11 +1377,12 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _actionBtn(
       IconData icon, String label, VoidCallback? onTap, String helpText,
       {Color color = Colors.deepPurpleAccent}) {
-    return _HelpBalloon(
+    final isHelpModeEnabled = context.watch<SettingsService>().isHelpModeEnabled;
+    return HelpBalloon(
       message: helpText,
-      isEnabled: _isHelpModeEnabled,
+      isEnabled: isHelpModeEnabled,
       child: InkWell(
-        onTap: _isHelpModeEnabled ? null : onTap,
+        onTap: isHelpModeEnabled ? null : onTap,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1566,73 +1497,3 @@ class _HomeScreenState extends State<HomeScreen>
   }
 }
 
-// Ajuste 3: Componente de Globo de Ayuda
-class _HelpBalloon extends StatelessWidget {
-  final Widget child;
-  final String message;
-  final bool isEnabled;
-  final Alignment balloonAlignment;
-
-  const _HelpBalloon({
-    required this.child,
-    required this.message,
-    required this.isEnabled,
-    this.balloonAlignment = Alignment.topRight,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        child,
-        if (isEnabled) ...[
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15)),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.info_outline,
-                            color: Colors.amber, size: 40),
-                        const SizedBox(height: 16),
-                        Text(message,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.outfit(fontSize: 14)),
-                      ],
-                    ),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text("Entendido"))
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-          Positioned(
-            left: balloonAlignment == Alignment.topLeft ? -4 : null,
-            right: balloonAlignment == Alignment.topRight ? -4 : null,
-            top: -4,
-            child: Container(
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                color: Colors.amber,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.black, width: 1),
-              ),
-              child: const Icon(Icons.help, size: 8, color: Colors.black),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}

@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
@@ -24,7 +23,6 @@ class ScannerService {
     ),
   );
 
-  final _textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
 
   // Devuelve una lista de rutas de imágenes capturadas
   Future<List<String>?> captureDocuments(
@@ -62,11 +60,8 @@ class ScannerService {
       {bool isSignature = false}) async {
     try {
       if (!isSignature) {
-        // MODO DOCUMENTO: Seguimos usando OCR para asegurar legibilidad
-        final inputImage = InputImage.fromFilePath(imagePath);
-        final RecognizedText recognizedText =
-            await _textRecognizer.processImage(inputImage);
-        return recognizedText.text.trim().length > 3;
+        // OCR removed to save space. Documents are accepted as-is.
+        return true;
       } else {
         // MODO FIRMA: Analizamos densidad de píxeles (contraste) en lugar de caracteres
         final bytes = await File(imagePath).readAsBytes();
@@ -187,14 +182,45 @@ class ScannerService {
     return (await file.rename(newPath)).path;
   }
 
+  Future<PdfPageFormat> _detectPdfFormat(String pdfPath) async {
+    try {
+      final doc = await render.PdfDocument.openFile(pdfPath);
+      if (doc.pages.isEmpty) return PdfPageFormat.a4;
+      
+      final page = doc.pages[0];
+      final double width = page.width;
+      final double height = page.height;
+      
+      bool isMatch(double w, double h, double targetW, double targetH) {
+        return (w - targetW).abs() <= 10 && (h - targetH).abs() <= 10;
+      }
+
+      if (isMatch(width, height, 595.27, 841.89) || isMatch(width, height, 841.89, 595.27)) {
+        return PdfPageFormat.a4;
+      } else if (isMatch(width, height, 612.0, 792.0) || isMatch(width, height, 792.0, 612.0)) {
+        return PdfPageFormat.letter;
+      } else if (isMatch(width, height, 612.0, 1008.0) || isMatch(width, height, 1008.0, 612.0)) {
+        return PdfPageFormat.legal;
+      }
+      
+      return PdfPageFormat.a4;
+    } catch (e) {
+      return PdfPageFormat.a4;
+    }
+  }
+
+  String _getPrefixForFormat(PdfPageFormat format) {
+    if (format == PdfPageFormat.letter) return 'LTR_';
+    if (format == PdfPageFormat.legal) return 'LGL_';
+    return 'A4_';
+  }
+
   // PASO 1: Corrección de Fidelidad y Recorte Simétrico
   Future<String> saveAsPdf(List<String> imagePaths,
       {PdfPageFormat? format}) async {
     final pdf = pw.Document();
-    String prefix = 'A4_';
-    if (format == PdfPageFormat.letter) {
-      prefix = 'LTR_';
-    } else if (format == PdfPageFormat.legal) prefix = 'LGL_';
+    final actualFormat = format ?? PdfPageFormat.a4;
+    final prefix = _getPrefixForFormat(actualFormat);
     final String processId = '$prefix${DateTime.now().millisecondsSinceEpoch}';
 
     for (var path in imagePaths) {
@@ -258,12 +284,9 @@ class ScannerService {
     final scansDir = Directory('${directory.path}/scans');
     if (!await scansDir.exists()) await scansDir.create(recursive: true);
 
-    prefix = 'A4_';
-    if (format == PdfPageFormat.letter) {
-      prefix = 'LTR_';
-    } else if (format == PdfPageFormat.legal) prefix = 'LGL_';
+    final finalPrefix = _getPrefixForFormat(actualFormat);
 
-    final fileName = '$prefix${DateTime.now().millisecondsSinceEpoch}.pdf';
+    final fileName = '$finalPrefix${DateTime.now().millisecondsSinceEpoch}.pdf';
     final file = File("${scansDir.path}/$fileName");
     await file.writeAsBytes(await pdf.save());
     return file.path;
@@ -290,8 +313,9 @@ class ScannerService {
   }
 
   Future<String?> importAndNormalizePdf(String pdfPath,
-      {PdfPageFormat format = PdfPageFormat.a4}) async {
+      {PdfPageFormat? format}) async {
     try {
+      final actualFormat = format ?? await _detectPdfFormat(pdfPath);
       final doc = await render.PdfDocument.openFile(pdfPath);
       final tempDir = await getTemporaryDirectory();
       List<String> pageImages = [];
@@ -321,7 +345,7 @@ class ScannerService {
       }
 
       // Ahora lo guardamos como un PDF nuevo con el formato deseado
-      final resultPath = await saveAsPdf(pageImages, format: format);
+      final resultPath = await saveAsPdf(pageImages, format: actualFormat);
 
       // Limpiar temporales
       for (var p in pageImages) {
@@ -343,9 +367,12 @@ class ScannerService {
       if (!await scansDir.exists()) await scansDir.create(recursive: true);
 
       final originalFileName = externalPath.split(Platform.pathSeparator).last;
-      // Por defecto asumimos A4 para importaciones externas de archivos PDF
+      
+      final detectedFormat = await _detectPdfFormat(externalPath);
+      final prefix = _getPrefixForFormat(detectedFormat);
+      
       final newPath =
-          '${scansDir.path}/A4_Import_${DateTime.now().millisecondsSinceEpoch}_$originalFileName';
+          '${scansDir.path}/${prefix}Import_${DateTime.now().millisecondsSinceEpoch}_$originalFileName';
       return await File(externalPath).copy(newPath);
     } catch (e) {
       return null;
@@ -354,6 +381,5 @@ class ScannerService {
 
   void dispose() {
     _documentScanner.close();
-    _textRecognizer.close();
   }
 }

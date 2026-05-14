@@ -9,6 +9,7 @@ import '../services/signature_service.dart';
 import '../services/credit_service.dart';
 import '../services/localization_service.dart';
 import '../services/settings_service.dart';
+import '../widgets/custom_app_bar.dart';
 
 class SignaturePreviewScreen extends StatefulWidget {
   final String imagePath;
@@ -120,7 +121,7 @@ class _SignaturePreviewScreenState extends State<SignaturePreviewScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(title: Text(LocalizationService.translate('signature', lang)), backgroundColor: Colors.transparent),
+      appBar: const FirmAppAppBar(showSettings: false),
       body: Column(
         children: [
           // Selector de versiones

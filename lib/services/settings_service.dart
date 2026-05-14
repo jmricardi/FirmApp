@@ -2,16 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsService extends ChangeNotifier {
-  bool _isQualityFilterEnabled = true;
   bool _isManualCropEnabled = false;
   String _localeCode = 'es';
-  ThemeMode _themeMode = ThemeMode.dark;
+  ThemeMode _themeMode = ThemeMode.light;
   bool _hasSeenWelcome = false;
-  bool get isQualityFilterEnabled => _isQualityFilterEnabled;
+  bool _isHelpModeEnabled = false;
+
   bool get isManualCropEnabled => _isManualCropEnabled;
   String get localeCode => _localeCode;
   ThemeMode get themeMode => _themeMode;
   bool get hasSeenWelcome => _hasSeenWelcome;
+  bool get isHelpModeEnabled => _isHelpModeEnabled;
 
   SettingsService() {
     _loadSettings();
@@ -19,21 +20,14 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    _isQualityFilterEnabled = prefs.getBool('quality_filter') ?? true;
     _isManualCropEnabled = prefs.getBool('manual_crop') ?? false;
     _localeCode = prefs.getString('locale') ?? 'es';
-    final themeIdx = prefs.getInt('theme_mode') ?? 2; // Default Dark
+    final themeIdx = prefs.getInt('theme_mode') ?? 1; // Default Light
     _themeMode = ThemeMode.values[themeIdx];
     _hasSeenWelcome = prefs.getBool('has_seen_welcome') ?? false;
     notifyListeners();
   }
 
-  Future<void> toggleQualityFilter(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    _isQualityFilterEnabled = value;
-    await prefs.setBool('quality_filter', value);
-    notifyListeners();
-  }
 
   Future<void> toggleManualCrop(bool value) async {
     final prefs = await SharedPreferences.getInstance();
@@ -63,4 +57,8 @@ class SettingsService extends ChangeNotifier {
     notifyListeners();
   }
 
+  void toggleHelpMode() {
+    _isHelpModeEnabled = !_isHelpModeEnabled;
+    notifyListeners();
+  }
 }

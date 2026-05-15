@@ -22,6 +22,8 @@ import 'document_refine_screen.dart';
 import '../services/remote_config_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/help_balloon.dart';
+import '../widgets/home_dashboard.dart';
+import '../widgets/home_bottom_actions.dart';
 import 'package:share_plus/share_plus.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -793,166 +795,9 @@ class _HomeScreenState extends State<HomeScreen>
       body: Stack(
         children: [
           Column(children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Bloque de Créditos (Principal) - REDUCIDO
-                    Expanded(
-                      flex: 2,
-                      child: HelpBalloon(
-                        message:
-                            "Muestra tus créditos disponibles para firmar y procesar documentos.",
-                        isEnabled: isHelpModeEnabled,
-                        child: GestureDetector(
-                          onTap: _showHistorySheet,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.deepPurpleAccent.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                  color:
-                                      Colors.deepPurpleAccent.withOpacity(0.1)),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.stars,
-                                    color: Colors.amber, size: 20),
-                                const SizedBox(width: 4),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text('CREDITS',
-                                        style: GoogleFonts.outfit(
-                                            fontSize: 8,
-                                            color: Colors.grey,
-                                            fontWeight: FontWeight.w600,
-                                            letterSpacing: 0.5)),
-                                    Text('$credits',
-                                        style: GoogleFonts.outfit(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    // Botón de Anuncio (+1) - AHORA EN SEGUNDA POSICIÓN
-                    Expanded(
-                      flex: 2,
-                      child: HelpBalloon(
-                        message:
-                            "Mira un anuncio corto para ganar 1 crédito gratis.",
-                        isEnabled: isHelpModeEnabled,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: adService.isAdLoaded
-                                ? () async {
-                                    final earned =
-                                        await adService.showRewardedAd();
-                                    if (earned) {
-                                      await context
-                                          .read<CreditService>()
-                                          .addCredit();
-                                    }
-                                  }
-                                : null,
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: adService.isAdLoaded
-                                    ? Colors.green.withOpacity(0.1)
-                                    : Colors.grey.withOpacity(0.08),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                    color: adService.isAdLoaded
-                                        ? Colors.green.withOpacity(0.4)
-                                        : Colors.grey.withOpacity(0.2)),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    adService.isAdLoaded
-                                        ? Icons.play_circle_fill
-                                        : Icons.play_circle_outline,
-                                    color: adService.isAdLoaded
-                                        ? Colors.green
-                                        : Colors.grey.withOpacity(0.4),
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(adService.isAdLoaded ? '+1' : '...',
-                                      style: GoogleFonts.outfit(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: adService.isAdLoaded
-                                              ? Colors.green
-                                              : Colors.grey.withOpacity(0.4))),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    // Botón de Recomendación (+5) - AHORA EN TERCERA POSICIÓN
-                    Expanded(
-                      flex: 2,
-                      child: HelpBalloon(
-                        message:
-                            "Recomienda la app a un amigo y gana 5 créditos gratis.",
-                        isEnabled: isHelpModeEnabled,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: _handleRecommend,
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: Colors.blueAccent.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                    color: Colors.blueAccent.withOpacity(0.2)),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.person_add_alt_1,
-                                      color: Colors.blueAccent, size: 20),
-                                  const SizedBox(width: 4),
-                                  Text('+5',
-                                      style: GoogleFonts.outfit(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.blueAccent)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                ),
-              ),
+            HomeDashboard(
+              onHistoryTap: _showHistorySheet,
+              onRecommend: _handleRecommend,
             ),
             Expanded(
               child: Column(
@@ -1271,133 +1116,62 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildBottomActions(String lang) {
-    final hasSignature = _selectedFiles
-        .any((path) => path.contains('FRM_'));
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black26,
-              blurRadius: 10,
-              offset: const Offset(0, -2))
-        ],
-      ),
-      child: SafeArea(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _actionBtn(Icons.visibility, "Ver", () {
-              final filesToView =
-                  _selectedFiles.map((path) => File(path)).toList();
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) =>
-                          DocumentViewerScreen(files: filesToView)));
-              setState(() => _selectedFiles.clear());
-            }, "Visualiza el contenido de los documentos seleccionados.",
-                color: Colors.blue),
-            if (!hasSignature)
-              _actionBtn(Icons.history_edu, "Firmar", () {
-                final filePath = _selectedFiles.first;
-                if (_selectedFiles.length == 1 &&
-                    filePath.toLowerCase().endsWith('.pdf')) {
-                  Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) =>
-                                  PdfSignatureScreen(pdfFile: File(filePath))))
-                      .then((result) {
-                    if (result == true) _loadGallery();
-                    setState(() => _selectedFiles.clear());
-                  });
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content:
-                          Text('Selecciona exactamente un PDF para firmar')));
-                }
-              }, "Abre el editor para colocar una firma en el PDF seleccionado.",
-                  color: Colors.green),
-            if (!hasSignature)
-              _actionBtn(Icons.text_fields, "Completar", () {
-                if (_selectedFiles.length == 1) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PdfFillScreen(pdfFile: File(_selectedFiles.first)),
-                    ),
-                  ).then((_) {
-                    setState(() => _selectedFiles.clear());
-                    _loadGallery();
-                  });
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Selecciona exactamente un PDF para rellenar')));
-                }
-              }, "Abre el modo formulario para agregar texto al PDF.",
-                  color: Colors.blueAccent),
-            _actionBtn(Icons.delete, "Borrar", () {
-              final filesToDelete =
-                  _selectedFiles.map((path) => File(path)).toList();
-              _showDeleteDialog(filesToDelete);
-            }, "Elimina permanentemente los archivos seleccionados.",
-                color: Colors.redAccent),
-            _actionBtn(Icons.share, "Compartir", () {
-              for (var path in _selectedFiles) {
-                _scanner.shareFile(path);
-              }
-              setState(() => _selectedFiles.clear());
-            }, "Envía los archivos seleccionados a otras aplicaciones.",
-                color: Colors.indigo),
-            _actionBtn(Icons.edit, "Nombre", () {
-              if (_selectedFiles.length == 1) {
-                _showRenameDialog(File(_selectedFiles.first));
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content:
-                        Text('Selecciona solo un archivo para renombrar')));
-              }
-            }, "Permite cambiar el nombre del archivo seleccionado.",
-                color: Colors.orange),
-            _actionBtn(
-                Icons.close,
-                "",
-                () => setState(() => _selectedFiles.clear()),
-                "Anula la selección actual y cierra este menú.",
-                color: Colors.blueGrey),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _actionBtn(
-      IconData icon, String label, VoidCallback? onTap, String helpText,
-      {Color color = Colors.deepPurpleAccent}) {
-    final isHelpModeEnabled = context.watch<SettingsService>().isHelpModeEnabled;
-    return HelpBalloon(
-      message: helpText,
-      isEnabled: isHelpModeEnabled,
-      child: InkWell(
-        onTap: isHelpModeEnabled ? null : onTap,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: onTap == null ? Colors.grey : color, size: 24),
-            if (label.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(label,
-                  style: GoogleFonts.outfit(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: onTap == null ? Colors.grey : color)),
-            ],
-          ],
-        ),
-      ),
+    return HomeBottomActions(
+      selectedFiles: _selectedFiles,
+      lang: lang,
+      onView: () {
+        final filesToView = _selectedFiles.map((path) => File(path)).toList();
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => DocumentViewerScreen(files: filesToView)));
+        setState(() => _selectedFiles.clear());
+      },
+      onSign: () {
+        final filePath = _selectedFiles.first;
+        if (_selectedFiles.length == 1 && filePath.toLowerCase().endsWith('.pdf')) {
+          Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => PdfSignatureScreen(pdfFile: File(filePath))))
+              .then((result) {
+            if (result == true) _loadGallery();
+            setState(() => _selectedFiles.clear());
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Selecciona exactamente un PDF para firmar')));
+        }
+      },
+      onFill: () {
+        if (_selectedFiles.length == 1) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => PdfFillScreen(pdfFile: File(_selectedFiles.first))),
+          ).then((_) {
+            setState(() => _selectedFiles.clear());
+            _loadGallery();
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Selecciona exactamente un PDF para rellenar')));
+        }
+      },
+      onDelete: () {
+        final filesToDelete = _selectedFiles.map((path) => File(path)).toList();
+        _showDeleteDialog(filesToDelete);
+      },
+      onShare: () {
+        for (var path in _selectedFiles) {
+          _scanner.shareFile(path);
+        }
+        setState(() => _selectedFiles.clear());
+      },
+      onRename: () {
+        if (_selectedFiles.length == 1) {
+          _showRenameDialog(File(_selectedFiles.first));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Selecciona solo un archivo para renombrar')));
+        }
+      },
+      onClear: () => setState(() => _selectedFiles.clear()),
     );
   }
 

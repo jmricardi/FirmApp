@@ -1,6 +1,6 @@
+import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:http/http.dart' as http;
@@ -9,7 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AuthService with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  static const String _workerUrl =
+      'https://firmapp-credits-worker.jmricardi-3d1.workers.dev';
 
   User? get currentUser => _auth.currentUser;
 
@@ -45,6 +47,10 @@ class AuthService with ChangeNotifier {
       final UserCredential credential = await _auth.signInWithEmailAndPassword(
           email: email, password: password);
       if (credential.user != null) {
+        if (!credential.user!.emailVerified) {
+          await _auth.signOut();
+          throw 'Debes verificar tu email antes de ingresar. Revisa tu bandeja de entrada.';
+        }
         await _ensureUserDocument(credential.user!);
       }
     } on FirebaseAuthException catch (e) {
@@ -64,7 +70,8 @@ class AuthService with ChangeNotifier {
         password: password,
       );
       await credential.user!.updateDisplayName(displayName);
-      await _ensureUserDocument(credential.user!, initialName: displayName);
+      await credential.user!.sendEmailVerification();
+      await _auth.signOut();
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {
         throw 'Este email ya está registrado. Intenta iniciar sesión.';
@@ -85,45 +92,89 @@ class AuthService with ChangeNotifier {
 
   Future<void> _ensureUserDocument(User user, {String? initialName}) async {
     try {
-      debugPrint('Verificando perfil Firestore para UID: ${user.uid}');
-      final docRef = _db.collection('users').doc(user.uid);
-      final doc = await docRef.get().timeout(const Duration(seconds: 10));
+      debugPrint('Sincronizando perfil con Worker para UID: ${user.uid}');
 
       final packageInfo = await PackageInfo.fromPlatform();
-      final bool docExists = doc.exists;
-      final Map<String, dynamic>? data = docExists ? doc.data() : null;
+      final prefs = await SharedPreferences.getInstance();
 
-      // 1. Datos base que SIEMPRE se actualizan (Conexión, Versión)
-      final Map<String, dynamic> updates = {
-        'lastActive': FieldValue.serverTimestamp(),
-        'app_version': packageInfo.version,
-        'email': user.email ?? data?['email'] ?? '',
-      };
+      // Leer version_hash local (para Optimistic Locking)
+      final localVersionHash = prefs.getString('profile_version_hash_${user.uid}');
 
-      // 2. Si el documento NO existe, inicializamos valores base
-      if (!docExists || data == null) {
-        debugPrint('Inicializando nuevo perfil de usuario...');
+      // Obtener idToken de Firebase para autenticación en el Worker
+      final idToken = await user.getIdToken();
 
-        updates['createdAt'] =
-            data?['createdAt'] ?? FieldValue.serverTimestamp();
-        updates['displayName'] = initialName ??
-            user.displayName ??
-            data?['displayName'] ??
-            'Usuario';
-      } else {
-        // Usuario ya existe, limpiar cualquier referido pendiente para evitar errores
-        final prefs = await SharedPreferences.getInstance();
-        if (prefs.containsKey('pending_referral')) {
-          await prefs.remove('pending_referral');
-          debugPrint('Referido pendiente eliminado: Usuario ya existente.');
+      // Detectar si es registro nuevo o login
+      final action = initialName != null ? 'initialize_user' : 'sync_profile';
+      final displayName = initialName ?? user.displayName ?? 'Usuario';
+
+      debugPrint('Acción a ejecutar: $action');
+
+      final response = await http.post(
+        Uri.parse(_workerUrl),
+        headers: {
+          'Authorization': 'Bearer $idToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'action': action,
+          'email': user.email ?? '',
+          'displayName': displayName,
+          'app_version': packageInfo.version,
+          if (localVersionHash != null) 'version_hash': localVersionHash,
+        }),
+      ).timeout(const Duration(seconds: 15));
+
+      debugPrint('Worker Response [$action]: ${response.statusCode} - ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Éxito: guardar nuevo version_hash y updated_at en caché local
+        final decoded = jsonDecode(response.body);
+        final userData = decoded['data']?['user'];
+        if (userData != null) {
+          if (userData['version_hash'] != null) {
+            await prefs.setString(
+                'profile_version_hash_${user.uid}', userData['version_hash']);
+          }
+          if (userData['updated_at'] != null) {
+            await prefs.setString(
+                'profile_updated_at_${user.uid}', userData['updated_at']);
+          }
         }
+        debugPrint('Perfil sincronizado con éxito en Worker.');
+
+        // Mantener lógica de referido pendiente (solo si ya existe el usuario)
+        if (action == 'sync_profile') {
+          if (prefs.containsKey('pending_referral')) {
+            await prefs.remove('pending_referral');
+            debugPrint('Referido pendiente eliminado: Usuario ya existente.');
+          }
+        }
+
+      } else if (response.statusCode == 409) {
+        // Conflicto: el servidor tiene una versión más nueva del perfil
+        // Prioridad al servidor: actualizar caché local con los datos del servidor
+        debugPrint('CONFLICT 409: Actualizando caché local con datos del servidor...');
+        final decoded = jsonDecode(response.body);
+        final serverUser = decoded['data']?['user'];
+        if (serverUser != null) {
+          if (serverUser['version_hash'] != null) {
+            await prefs.setString(
+                'profile_version_hash_${user.uid}', serverUser['version_hash']);
+          }
+          if (serverUser['updated_at'] != null) {
+            await prefs.setString(
+                'profile_updated_at_${user.uid}', serverUser['updated_at']);
+          }
+          debugPrint('Caché local actualizada con versión del servidor (resolución de conflicto).');
+        }
+
+      } else {
+        debugPrint('Error del Worker: ${response.statusCode} - ${response.body}');
       }
 
-      // 3. Guardar/Actualizar en Firestore
-      await docRef.set(updates, SetOptions(merge: true));
-      debugPrint('Perfil actualizado/verificado con éxito en Firestore.');
     } catch (e) {
-      debugPrint('ERROR CRÍTICO en _ensureUserDocument: $e');
+      // En caso de error de red, la app continúa. No es un error crítico.
+      debugPrint('ERROR en _ensureUserDocument (Worker): $e');
     }
   }
 

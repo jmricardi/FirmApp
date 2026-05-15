@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../services/settings_service.dart';
 import '../services/auth_service.dart';
+import '../services/network_service.dart';
 import 'help_balloon.dart';
 
 class FirmAppAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -23,22 +24,38 @@ class FirmAppAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final isHelpModeEnabled =
         context.watch<SettingsService>().isHelpModeEnabled;
+    final isOnline = context.watch<NetworkService>().isOnline;
+
+    final isFirstRoute = ModalRoute.of(context)?.isFirst ?? true;
 
     return AppBar(
-      leading: (showActions && showSettings && (ModalRoute.of(context)?.isFirst ?? true))
-          ? HelpBalloon(
-              message: "Configura las preferencias de la aplicación y el idioma.",
-              isEnabled: isHelpModeEnabled,
-              balloonAlignment: Alignment.bottomRight,
-              child: IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () {
-                  if (onSettingsTap != null) {
-                    onSettingsTap!();
-                  }
-                  Navigator.pushNamed(context, '/settings');
-                },
-              ),
+      leadingWidth: isFirstRoute ? 90 : null,
+      leading: isFirstRoute
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (showActions && showSettings)
+                  HelpBalloon(
+                    message:
+                        "Configura las preferencias de la aplicación y el idioma.",
+                    isEnabled: isHelpModeEnabled,
+                    balloonAlignment: Alignment.bottomRight,
+                    child: IconButton(
+                      icon: const Icon(Icons.settings_outlined),
+                      onPressed: () {
+                        if (onSettingsTap != null) {
+                          onSettingsTap!();
+                        }
+                        Navigator.pushNamed(context, '/settings');
+                      },
+                    ),
+                  ),
+                Icon(
+                  isOnline ? Icons.cloud_done : Icons.cloud_off,
+                  size: 24,
+                  color: isOnline ? Colors.greenAccent : Colors.grey,
+                ),
+              ],
             )
           : null,
       title: Row(

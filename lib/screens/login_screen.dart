@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/localization_service.dart';
 import '../services/settings_service.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -250,6 +251,10 @@ class _LoginScreenState extends State<LoginScreen> {
               await auth.signInWithEmail(_emailController.text, _passwordController.text);
             } else {
               await auth.registerWithEmail(_emailController.text, _passwordController.text, _nameController.text);
+              if (mounted) {
+                _showVerificationDialog();
+                setState(() => _isLogin = true); // Cambiar a login para que pueda entrar tras verificar
+              }
             }
           } catch (e) {
             if (!mounted) return;
@@ -330,6 +335,36 @@ class _LoginScreenState extends State<LoginScreen> {
         foregroundColor: colorScheme.onSurface,
         side: BorderSide(color: isDark ? Colors.white24 : Colors.black12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  void _showVerificationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¡Casi listo!'),
+        content: const Text(
+          'Te hemos enviado un correo de verificación. Por favor, revisa tu bandeja de entrada (y la carpeta de spam) antes de iniciar sesión.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Entendido'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                final Uri emailLaunchUri = Uri(scheme: 'mailto');
+                await launchUrl(emailLaunchUri);
+              } catch (e) {
+                debugPrint('No se pudo abrir la app de correo');
+              }
+            },
+            child: const Text('Abrir Correo'),
+          ),
+        ],
       ),
     );
   }

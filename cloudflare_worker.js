@@ -85,6 +85,10 @@ export default {
           return await this.handleHistory(env, uid, corsHeaders);
         case "referral":
           return await this.handleReferral(request, env, uid, corsHeaders);
+        case "initialize_user":
+          return await this.handleInitializeUser(body, env, uid, corsHeaders);
+        case "sync_profile":
+          return await this.handleSyncProfile(body, env, uid, corsHeaders);
         default:
           return this.errorResponse(
             `Invalid action: ${action}`,
@@ -271,7 +275,101 @@ export default {
 
   async handleGetCredits(env, uid, headers) {
     const balance = await this.getUserBalance(env, uid);
-    return this.jsonResponse({ balance }, headers);
+    const profile = await env.DB.prepare(
+      "SELECT id, email, display_name, app_version, version_hash, updated_at FROM users WHERE id = ?"
+    ).bind(uid).first();
+    return this.jsonResponse({ balance, user: profile || null }, headers);
+  },
+
+  /**
+   * HANDLER: Inicializa el perfil del usuario en D1.
+   * Si ya existe, devuelve sus datos actuales.
+   * Si es nuevo, lo crea con 10 créditos de bienvenida.
+   */
+  async handleInitializeUser(body, env, uid, headers) {
+    try {
+      const { email, displayName, app_version } = body;
+
+      // Verificar si el usuario ya existe
+      const existing = await env.DB.prepare(
+        "SELECT id, email, display_name, app_version, credits, version_hash, created_at, updated_at FROM users WHERE id = ?"
+      ).bind(uid).first();
+
+      if (existing) {
+        // Usuario ya registrado — devolver perfil y balance actuales
+        const balance = await this.getUserBalance(env, uid);
+        return this.jsonResponse({ balance, user: existing, isNew: false }, headers);
+      }
+
+      // Usuario nuevo: crear perfil (Créditos iniciales se otorgan desde la UI para mostrar el diálogo)
+      const now = new Date().toISOString();
+      const version_hash = crypto.randomUUID();
+
+      // 1. Insertar perfil en tabla users
+      await env.DB.prepare(
+        `INSERT INTO users (id, email, display_name, app_version, credits, created_at, updated_at, version_hash, is_deleted)
+         VALUES (?, ?, ?, ?, 0, ?, ?, ?, 0)`
+      ).bind(uid, email || "", displayName || "Usuario", app_version || "", now, now, version_hash).run();
+
+      const balance = 0;
+      const newUser = { id: uid, email, display_name: displayName, app_version, version_hash, created_at: now, updated_at: now };
+
+      return this.jsonResponse({ balance, user: newUser, isNew: true }, headers);
+    } catch (e) {
+      console.error("Error in handleInitializeUser:", e);
+      return this.errorResponse(`Error: ${e.message}`, 500, headers);
+    }
+  },
+
+  /**
+   * HANDLER: Sincroniza el perfil del usuario con soporte Offline-First.
+   * Usa Optimistic Locking: si el version_hash no coincide, devuelve 409 Conflict.
+   */
+  async handleSyncProfile(body, env, uid, headers) {
+    try {
+      const { displayName, email, app_version, version_hash: clientHash } = body;
+
+      // Leer el perfil actual del servidor
+      const serverProfile = await env.DB.prepare(
+        "SELECT id, email, display_name, app_version, version_hash, updated_at FROM users WHERE id = ?"
+      ).bind(uid).first();
+
+      // Si el usuario no existe aún, inicializarlo
+      if (!serverProfile) {
+        return await this.handleInitializeUser(body, env, uid, headers);
+      }
+
+      // Optimistic Locking: detectar conflicto si el hash del cliente es diferente al del servidor
+      if (clientHash && serverProfile.version_hash && clientHash !== serverProfile.version_hash) {
+        const balance = await this.getUserBalance(env, uid);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            conflict: true,
+            error: "CONFLICT: Server has a newer version of this profile.",
+            data: { balance, user: serverProfile }
+          }),
+          { status: 409, headers: { ...headers, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Sin conflicto: actualizar perfil con nuevo hash y timestamp
+      const now = new Date().toISOString();
+      const newHash = crypto.randomUUID();
+
+      await env.DB.prepare(
+        `UPDATE users SET email = ?, display_name = ?, app_version = ?, updated_at = ?, version_hash = ?
+         WHERE id = ?`
+      ).bind(email || serverProfile.email, displayName || serverProfile.display_name, app_version || serverProfile.app_version, now, newHash, uid).run();
+
+      const balance = await this.getUserBalance(env, uid);
+      const updatedProfile = { id: uid, email, display_name: displayName, app_version, version_hash: newHash, updated_at: now };
+
+      return this.jsonResponse({ balance, user: updatedProfile }, headers);
+    } catch (e) {
+      console.error("Error in handleSyncProfile:", e);
+      return this.errorResponse(`Error: ${e.message}`, 500, headers);
+    }
   },
 
   async handleHistory(env, uid, headers) {

@@ -59,3 +59,31 @@ Si has realizado cambios en el esquema de la base de datos `firmapp-db`.
 ```powershell
 npx wrangler d1 migrations apply firmapp-db --remote
 ```
+
+## 4. Gestión de Base de Datos (D1)
+
+### Inicializar Esquema (Crear Tablas)
+Crea las tablas `users` y `movements` si no existen.
+```powershell
+npx wrangler d1 execute firmapp-db --remote --command "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT, display_name TEXT, app_version TEXT, credits INTEGER DEFAULT 0, created_at TEXT, updated_at TEXT, version_hash TEXT, is_deleted INTEGER DEFAULT 0); CREATE TABLE IF NOT EXISTS movements (id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, amount INTEGER, description TEXT, idempotency_key TEXT UNIQUE, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP);"
+```
+
+### Borrado Total (Reset de Datos)
+Elimina todos los registros de usuarios y transacciones (¡Cuidado!).
+```powershell
+npx wrangler d1 execute firmapp-db --remote --command "DELETE FROM users; DELETE FROM movements;"
+```
+
+### Auditoría y Estado
+Verifica estructura de tablas, conteo de registros y últimos movimientos.
+
+**Ver columnas:**
+```powershell
+npx wrangler d1 execute firmapp-db --remote --command "PRAGMA table_info(users); PRAGMA table_info(movements);"
+```
+
+**Ver conteo y últimos datos:**
+```powershell
+npx wrangler d1 execute firmapp-db --remote --command "SELECT 'Usuarios:' as tabla, COUNT(*) as total FROM users UNION SELECT 'Movimientos:', COUNT(*) FROM movements; SELECT * FROM movements ORDER BY timestamp DESC LIMIT 5;"
+```
+
